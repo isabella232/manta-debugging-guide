@@ -1,0 +1,115 @@
+== Quick references
+
+=== Manta HTTP Quick Reference
+
+==== HTTP Status Codes in Manta
+
+Related links:
+
+- https://tools.ietf.org/html/rfc7231#page-47[RFC 7231, Section 6], which covers
+  HTTP response codes
+- https://en.wikipedia.org/wiki/List_of_HTTP_status_codes[List of HTTP Status
+  Codes] on Wikipedia
+
+Here we cover only status codes with particular meanings within Manta or that are commonly used within Manta.
+
+[options="header"]
+|================================================
+| Code         | HTTP              | Meaning in Manta
+| 100-continue | -                 | The client requested extra initial validation, and the server has not yet rejected the request.
+| 200          | `OK`              | Most commonly used for successful GETs
+| 201          | `Created`         | Most commonly used for creating jobs and multipart uploads (not object PUT operations)
+| 204          | `No Content`      | Used for successful direction creations, directory removals, object uploads, object deletes, snaplink creation, and a handful of other operations
+| 400          | `Bad Request`     | The client send an invalid HTTP request (e.g., an incorrect MD5 checksum)
+| 401          | `Unauthorized`    | The client sent an invalid or unsupported signature, or it did not send any signature.
+| 403          | `Forbidden`       | The client failed to authenticate, or it authenticated and was not allowed to access the resource.
+| 408          | `Request Timeout` | The server did not receive a complete request from the client within a reasonable timeout.
+| 409          | `Conflict`        | The client sent an invalid combination of parameters for an API request.
+| 412          | `Precondition Failed` | The client issued a conditional request and the conditions were not true.  (For example, this could have been a PUT-if-the-object-does-not-already-exist, and the object already existed.)
+| 429          | `Too Many Requests`     | The client is being rate-limited by the server because it issued too many requests in too short a period.
+| 499          | (not in HTTP)   | The 499 status is used to indicate that the client appeared to abandon the request.  (In this case, it's not possible to send a response.  The 499 code is used for internal logging and statistics.)  This was originally used in nginx.
+| 500          | `Internal Server Error` | Catch-all code for a failure to process this request.
+| 502          | `Bad Gateway`           | Historically, this code was emitted by Manta when requests took more than two minutes to complete.  This was an artifact of the load balancer.  Modern versions of Manta report this as a 503.
+| 503          | `Service Unavailable`   | This code generally indicates that the system is overloaded and cannot process more work.  In practice, this currently means that a particular metadata shard's queue is full.
+| 504          | `Gateway Timeout`       | Similar to 502.
+|================================================
+
+Generally:
+
+- Responses with status codes above 400 (400 through 599) are often called **errors**.  In many cases, though, 400-level errors do not indicate that anything is wrong.  For example, a 404 may be normal behavior for a client that checks for the existence of a particular object before doing some other operation.
+- For errors (except for 499), the response body should contain a JSON object containing more information: a Manta-specific error code and message.
+- Generally, **400-level codes (i.e., codes from 400 to 499)** indicate that the request failed due to something within the client's control.
+- Generally, **500-level codes (i.e., codes from 500 to 599)** indicate a server-side failure.
+
+// TODO Make this a link.
+See also: Debugging Request Failures.
+
+==== HTTP Headers in Manta
+
+Related links:
+
+- https://en.wikipedia.org/wiki/List_of_HTTP_header_fields[List of HTTP Header Fields] on Wikipedia
+
+Here we cover only headers with particular meanings within Manta or that are commonly used within Manta.
+
+[options="header"]
+|================================================
+| Header                        | Request/Response | Origin | Meaning
+| `Content-Length`              | Both     | HTTP        | See <<_streaming_vs_fixed_size_requests>>.
+| `Content-MD5`                 | Both     | HTTP        | MD5 checksum of the body of a request or response.  It's essential that clients and servers validate this on receipt.
+| `Content-Type`                | Both     | HTTP, Manta | Describes the type (i.e., MIME type) of the body of the request or response.  Manta understands a special content-type for directories called `application/json; type=directory`, which represents a Manta directory.
+| `Date`                        | Both     | HTTP        | The time when the request or response was generated.  This is often useful when debugging for putting together a timeline.
+| `Transfer-encoding: chunked`  | Both     | HTTP        | See <<_streaming_vs_fixed_size_requests>>.
+| any header starting with `m-` | Both     | Manta       | Arbitrary user-provided headers.
+| `Result-Set-Size`             | Response | Manta       | For GET or HEAD requests on directories, this header indicates how many items are in the directory.
+| `x-request-id`                | Both     | Manta       | A unique identifier for this request.  This can be used to locate details about a request in Matna logs.  Clients may specify this header on requests, in which case Manta will use the requested id.  Othewrise, Manta will generate one and provide it with the response.
+| `x-server-name`               | Response | Manta       | A unique identifier for the frontend instance that handled this request.  Specifically, this identifies the "webapi" zone that handled the request.
+|================================================
+
+
+// The remaining sections are probably too detailed for here.
+
+==== Requests using "100-continue"
+
+HTTP allows clients to specify a header called `Expect: 100-continue` to request that the server validate the request headers before the client sends the rest of it.  For example, suppose a client wants to upload a 10 GiB object to `/foo/stor/bar/obj1`, but `/foo/stor/bar` does not exist.  With `Expect: 100-continue`, the server can immediately send a "404 Not Found" response (because the parent directory doesn't exist).  Without this header, HTTP would require that the client send the entire 10 GiB request.
+
+When `Expect: 100-continue` is specified with the request headers, then the client waits for a `100-continue` response before proceeding to send the body of the request.
+
+We mention this behavior because error handling for requests that do _not_ use `100-continue` can be surprising.  For example, when the client doesn't specify this header, the server might still choose to send a 400 or 500-level response immediately, but it must still wait for the client to send the whole request.  There have been bugs in the past where the server did not read the request of the request, resulting in a memory leak and a timeout from the client's perspective (because the client has no reason to read a response before it has even finished sending the request, if it didn't use `100-continue`).
+
+
+==== Streaming vs. fixed-size requests
+
+In order to frame HTTP requests and responses, one of two modes must be used:
+
+- A request or response can specify a `content-length` header that indicates
+  exactly how many bytes of data will be contained in the body; or
+- A request or response can specify `transfer-encoding: chunked`, which
+  indicates that the body will be sent in chunks, each of which is preceded by
+  a size
+
+https://apidocs.joyent.com/manta/api.html#PutObject[Manta treats these two modes a little differently].  If an upload request has a `content-length`, then Manta ensures that the storage nodes chosen to store the data have enough physical space available.  Requests with `transfer-encoding: chunked` are called _streaming uploads_.  For these uploads, a maximum content length is assumed by the server that's used to validate that storage nodes contain enough physical space.  https://apidocs.joyent.com/manta/api.html#PutObject[The maximum content length for a streaming upload can be overridden using the `max-content-length` header.]
+
+See also the next section on
+<<_validating_the_contents_of_requests_and_responses>>.
+
+
+==== Validating the contents of requests and responses
+
+**It's critical that clients and servers validate the body of responses and requests.  Some types of corruption are impossible to report any other way.**
+
+Corrupted requests and responses can manifest in a number of ways:
+
+- the sender may stop sending after too few bytes
+- the sender may send EOF after sending too few bytes
+- the sender may send too many bytes
+- the body may have the right number of bytes, but have incorrect bytes
+
+Importantly, because of the two modes of transfer described above (under <<_streaming_vs_fixed_size_requests>>), the reader of a request or response always knows how many bytes to expect.  In the cases above:
+
+- If the sender stops sending bytes after too few bytes (but the socket is still open for writes in both directions), then the reader will fail the operation due to a timeout.  For example, if the client does this, then the server will report a 408 error.  **The client must implement a timeout for this case to cover the case where the server fails in this way.**
+- If the sender sends EOF after too few bytes, this would be a bad request or response.  If a client did this, then the server would report a 400 error.  **The client must implement a check for this case to cover the case where the server fails in this way.**  At this point in the HTTP operation, the client may have already read a successful response (i.e., a 200), and it needs to be sophisticated enough to treat it as an error anyway.
+- If the sender sends too many bytes, then the request or response would be complete, but the _next_ request or response would likely be invalid.
+- When possible, clients and servers should generally send a `Content-MD5` header.  This allows the remote side to compute an MD5 checksum on the body and verify that the correct bytes were sent.  For object downloads, Manta always stores the MD5 computed from the original upload and it always provides the `Content-MD5` header on responses.  If clients provide a `Content-MD5` header on uploads, then Manta always validates that it receives it.  When both of these mechanisms are used by both client and server, a client can be sure of end-to-end integrity.
+
+*Note:* It's been noted that MD5 checksums are deprecated for security purposes due to the risk of collisions.  While they are likely not appropriate for security, MD5 collisions remain rare enough for MD5 checksums to be used for basic integrity checks.

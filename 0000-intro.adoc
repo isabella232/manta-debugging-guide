@@ -1,0 +1,17 @@
+This document is intended for operators and developers of Manta seeking to better understand Manta's runtime behavior, both under normal operation and during incident response.
+
+You may find other documentation helpful:
+
+* https://github.com/joyent/manta[Manta GitHub Project]
+* http://joyent.github.io/manta/[Manta Operator's Guide]
+* https://apidocs.joyent.com/manta/[Manta End User Documentation]
+* https://github.com/joyent/manta-tools-deck[Manta Tools (slide deck)]
+
+This document is organized into a few broad sections:
+
+- <<_incident_response_decision_tree>>: this chapter attempts to walk you through the process of understanding common problems with Manta.  This often links directly to specific common tasks later in the document.
+- **Specific investigation tasks**: this chapter covers a number of different specific tasks associated with debugging Manta, like finding a Muskie log entry, checking what instances of a service are registered in DNS, and so on.
+- **Quick references**
+  - **HTTP Status Codes**
+  - **Glossary of Manta-related terms**
+- **General FAQ**
