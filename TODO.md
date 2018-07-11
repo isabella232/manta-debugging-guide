@@ -1,5 +1,6 @@
 TODO:
 - figure out how to make the TOC float on the left hand side
+- add a detailed section about decoding Muskie log entries
 
 Background context:
 
