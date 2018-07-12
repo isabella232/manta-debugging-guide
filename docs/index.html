@@ -544,10 +544,15 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <div class="ulist">
 <ul>
 <li>
-<p><a href="#_incident_response_decision_tree">Incident Response Decision Tree</a>: this chapter attempts to walk you through the process of understanding common problems with Manta.  This often links directly to specific common tasks later in the document.</p>
+<p><a href="#_incident_response_decision_tree">Incident Response Decision Tree</a>: this chapter attempts to walk you
+through the process of understanding common problems with Manta.  This often
+links directly to specific common tasks later in the document.</p>
 </li>
 <li>
-<p><strong>Specific investigation tasks</strong>: this chapter covers a number of different specific tasks associated with debugging Manta, like finding a Muskie log entry, checking what instances of a service are registered in DNS, and so on.</p>
+<p><a href="#_basic_investigation_tasks">Basic investigation tasks</a>: this chapter covers a number of different
+specific tasks associated with debugging Manta, like understanding a Muskie
+log entry, checking what instances of a service are registered in DNS, and so
+on.</p>
 </li>
 <li>
 <p><a href="#_quick_references">Quick references</a> to HTTP status codes and headers used in Manta</p>
@@ -562,6 +567,25 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <div class="sect1">
 <h2 id="_incident_response_decision_tree">Incident Response Decision Tree</h2>
 <div class="sectionbody">
+<div class="paragraph">
+<p>Choose a place to start:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><a href="#_investigating_a_decrease_in_overall_throughput">Investigating a decrease in overall throughput</a></p>
+</li>
+<li>
+<p><a href="#_investigating_an_increase_in_error_rate">Investigating an increase in error rate</a></p>
+</li>
+<li>
+<p><a href="#_investigating_an_increase_in_latency">Investigating an increase in latency</a></p>
+</li>
+<li>
+<p><a href="#_investigating_a_specific_request_that_has_failed">Investigating a specific request that has failed</a></p>
+</li>
+</ul>
+</div>
 <div class="sect2">
 <h3 id="_investigating_a_decrease_in_overall_throughput">Investigating a decrease in overall throughput</h3>
 <div class="paragraph">

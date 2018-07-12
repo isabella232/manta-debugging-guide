@@ -39,6 +39,13 @@
 // 	      Yes: There's likely a memory leak.  gcore and restart.
 //               No:  Profile it.
 
+Choose a place to start:
+
+* <<_investigating_a_decrease_in_overall_throughput>>
+* <<_investigating_an_increase_in_error_rate>>
+* <<_investigating_an_increase_in_latency>>
+* <<_investigating_a_specific_request_that_has_failed>>
+
 === Investigating a decrease in overall throughput
 
 Start here if you have reason to believe that inbound or outbound throughput to
