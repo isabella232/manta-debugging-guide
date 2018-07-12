@@ -562,67 +562,6 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <div class="sect1">
 <h2 id="_incident_response_decision_tree">Incident Response Decision Tree</h2>
 <div class="sectionbody">
-<div class="listingblock">
-<div class="content">
-<pre class="highlight"><code class="language-text" data-lang="text">  - Has Muskie tail latency increased?
-    Yes: Check for increase in tail latency at electric-moray
-      Yes: Check for increase in tail latency at moray
-        Yes:
-	- Identify which shards are affected.
-	- Does it apply uniformly to all instances in the shard?
-	  Yes: Investigate PostgreSQL latency
-	  No: Examine specific instances with high latency
-	  - Are they over 85% CPU utilization?
-	    Yes: Is it mostly GC?
-	      Yes: There's likely a memory leak.  gcore and restart.
-	      No: Are there other instances using much less CPU?
-	      - Yes: The load is imbalanced.  Are all instances in DNS?
-                  Yes: This is likely a new bug requiring core file analysis of
-                       cueball state.
-                  No, and the ones not in DNS are the ones that are lightly
-                  loaded.
-                      Is registrar running in the zones that aren't in DNS?
-                      No: Determine why and try to bring up registrar.
-                      Yes: Registrar/ZK bug.
-            No (not mostly GC): profile it.
-        No (no tail latency at Moray):
-        - Does electric-moray tail latency affect only some instances?
-          No:
-          - Is CPU usage above 75% per process (300% per zone) for most
-            instances?
-            Yes: Pick one.  Is it mostly GC?
-	      Yes: There's likely a memory leak.  gcore and restart.
-              No:  Profile it.
-            Yes: Likely out of capacity.  Deploy more electric-moray instances.
-                 Also check whether workload has generally increased with CPU
-                 usage.
-            No: Trace Electric-Moray processes.
-          Yes: find an affected instance (zone and process):
-          - Is it over 85% CPU utilization?
-            Yes: Is it mostly GC?
-	      Yes: There's likely a memory leak.  gcore and restart.
-              No:  Profile it.
-- Investigating an increase in error rate
-  - See status code quick reference
-  - What type of error is it?
-    - 503
-      - Manta is reporting that it's overloaded.
-      - check for moray queueing
-      - check for moray p99 latency
-    - 500
-      - Find and investigate an individual request.
-    - XXX status code for out-of-space
-    - XXX status code for no storage nodes available (may be the same; may have
-      its own decision tree based on minnow records)
-    - 499
-      - Client abandoned upload.
-      - Check for muskie p99 latency
-    - 412, 404
-      - Innocuous.
-    - 401/403
-      - Likely client problem, but not necessarily.</code></pre>
-</div>
-</div>
 <div class="sect2">
 <h3 id="_investigating_a_decrease_in_overall_throughput">Investigating a decrease in overall throughput</h3>
 <div class="paragraph">
