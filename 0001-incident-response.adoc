@@ -133,7 +133,7 @@ which of these cases caused it.
    a large number).
 ** **Yes, these headers are present.**  In this case, the error message in the
    body of the response will indicate the problem.  See
-   <<_investigating_specific_error_messages>>.
+   <<_details_about_specific_error_messages>>.
 
 **If you have a large number of 503s,** you can check for systemic causes:
 
