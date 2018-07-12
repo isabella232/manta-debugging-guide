@@ -466,7 +466,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </li>
 <li><a href="#_basic_investigation_tasks">Basic investigation tasks</a>
 <ul class="sectlevel2">
-<li><a href="#_checking_metrics">Checking metrics</a></li>
+<li><a href="#_checking_recent_historical_metrics">Checking recent historical metrics</a></li>
 <li><a href="#_locate_a_specific_zone">Locate a specific zone</a></li>
 <li><a href="#_log_into_a_specific_zone">Log into a specific zone</a></li>
 <li><a href="#_understanding_a_muskie_log_entry">Understanding a Muskie log entry</a></li>
@@ -504,6 +504,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_glossary_of_manta_terms">Glossary of Manta terms</a></li>
 </ul>
 </li>
+<li><a href="#_deployment_specific_details">Deployment-specific details</a></li>
 </ul>
 </div>
 </div>
@@ -556,6 +557,10 @@ on.</p>
 </li>
 <li>
 <p><a href="#_quick_references">Quick references</a> to HTTP status codes and headers used in Manta</p>
+</li>
+<li>
+<p><a href="#_deployment_specific_details">Deployment-specific details</a>: this chapter lists a number of details that
+your company or organization should separately document.</p>
 </li>
 <li>
 <p><strong>General FAQ</strong></p>
@@ -1177,7 +1182,7 @@ client to give up before receiving a response.</p>
 <h2 id="_basic_investigation_tasks">Basic investigation tasks</h2>
 <div class="sectionbody">
 <div class="sect2">
-<h3 id="_checking_metrics">Checking metrics</h3>
+<h3 id="_checking_recent_historical_metrics">Checking recent historical metrics</h3>
 
 </div>
 <div class="sect2">
@@ -1620,10 +1625,118 @@ services (SMF vs. SAPI)</p>
 </div>
 </div>
 </div>
+<div class="sect1">
+<h2 id="_deployment_specific_details">Deployment-specific details</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>This documentation is general-purpose for any Manta deployment, but it makes
+reference to specific infrastructure that operators should provide for their own
+deployments.  In particular, it&#8217;s strongly recommended that operators deploy:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>one or more Prometheus instances to pull runtime metrics from various Manta
+components, with rules defined to precompute commonly-used metrics</p>
+</li>
+<li>
+<p>one or more Grafana instances to support dashboards based on these runtime
+metrics</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>We recommend creating a few different dashboards:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>a "basic health" dashboard that shows:</p>
+<div class="ulist">
+<ul>
+<li>
+<p>webapi requests completed with ability to break out by operation and status
+code</p>
+</li>
+<li>
+<p>webapi inbound and outbound throughput</p>
+</li>
+<li>
+<p>webapi average, p90, p95, and p99 latency</p>
+</li>
+<li>
+<p>electric-moray average, p90, p95, and p99 latency</p>
+</li>
+<li>
+<p>moray average, p90 p95, and p99 latency</p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>a "shard health" dashboard that shows:</p>
+<div class="ulist">
+<ul>
+<li>
+<p>moray RPCs per second with ability to break out by shard and RPC type</p>
+</li>
+<li>
+<p>moray RPC average, p90, p95, and p99 latency</p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>a "postgres" dashboard that shows:</p>
+<div class="ulist">
+<ul>
+<li>
+<p>transactions committed and rolled back with ability to break out by shard</p>
+</li>
+<li>
+<p>transactions-til-wraparound-autovacuum, with ability to break out by shard
+and table</p>
+</li>
+<li>
+<p>live and dead tuples, with ability to break out by shard and table</p>
+</li>
+</ul>
+</div>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>The rest of this guide makes reference to "checking recent historical metrics".
+This refers to using one of these dashboards to observe these metrics, typically
+for a period before and during an incident.</p>
+</div>
+<div class="paragraph">
+<p>(Unfortunately, there is not much documentation yet on the metrics available from
+Manta or how to create these dashboards.  Specific metrics are often documented
+with the components that provide them.)</p>
+</div>
+<div class="paragraph">
+<p>For more information about Grafana (including how to build dashboards and
+interact with them), see the
+<a href="http://docs.grafana.org/guides/basic_concepts/">Grafana documentation</a>.</p>
+</div>
+<div class="paragraph">
+<p>For more information about Prometheus, see the
+<a href="https://prometheus.io/docs/introduction/overview/">official Prometheus
+documentation</a>.</p>
+</div>
+<div class="paragraph">
+<p>Once these dashboards are created, it&#8217;s recommended to create a landing page for
+incident responders that links to this guide as well as the endpoints for
+viewing these dashboars.  Any credentials needed for these endpoints should be
+document or distributed to responders.</p>
+</div>
+</div>
+</div>
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2018-07-12 15:06:15 PDT
+Last updated 2018-07-12 16:33:33 PDT
 </div>
 </div>
 </body>

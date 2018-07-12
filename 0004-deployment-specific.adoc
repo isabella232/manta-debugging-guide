@@ -1,0 +1,49 @@
+== Deployment-specific details
+
+This documentation is general-purpose for any Manta deployment, but it makes
+reference to specific infrastructure that operators should provide for their own
+deployments.  In particular, it's strongly recommended that operators deploy:
+
+- one or more Prometheus instances to pull runtime metrics from various Manta
+  components, with rules defined to precompute commonly-used metrics
+- one or more Grafana instances to support dashboards based on these runtime
+  metrics
+
+We recommend creating a few different dashboards:
+
+* a "basic health" dashboard that shows:
+** webapi requests completed with ability to break out by operation and status
+   code
+** webapi inbound and outbound throughput
+** webapi average, p90, p95, and p99 latency
+** electric-moray average, p90, p95, and p99 latency
+** moray average, p90 p95, and p99 latency
+* a "shard health" dashboard that shows:
+**  moray RPCs per second with ability to break out by shard and RPC type
+**  moray RPC average, p90, p95, and p99 latency
+* a "postgres" dashboard that shows:
+** transactions committed and rolled back with ability to break out by shard
+** transactions-til-wraparound-autovacuum, with ability to break out by shard
+   and table
+** live and dead tuples, with ability to break out by shard and table
+
+The rest of this guide makes reference to "checking recent historical metrics".
+This refers to using one of these dashboards to observe these metrics, typically
+for a period before and during an incident.
+
+(Unfortunately, there is not much documentation yet on the metrics available from
+Manta or how to create these dashboards.  Specific metrics are often documented
+with the components that provide them.)
+
+For more information about Grafana (including how to build dashboards and
+interact with them), see the
+http://docs.grafana.org/guides/basic_concepts/[Grafana documentation].
+
+For more information about Prometheus, see the
+https://prometheus.io/docs/introduction/overview/[official Prometheus
+documentation].
+
+Once these dashboards are created, it's recommended to create a landing page for
+incident responders that links to this guide as well as the endpoints for
+viewing these dashboars.  Any credentials needed for these endpoints should be
+document or distributed to responders.

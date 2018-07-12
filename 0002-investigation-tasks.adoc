@@ -1,7 +1,10 @@
 == Basic investigation tasks
 
-=== Checking metrics
+=== Checking recent historical metrics
 
+// This section should mostly reference another section that describes deploying
+// Prometheus, Grafana, etc, as well as what dashboards to have, and what
+// metrics they should provide.
 // error rate, muskie tail latency, moray queue depth, moray tail latency
 
 === Locate a specific zone

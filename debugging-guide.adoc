@@ -15,3 +15,5 @@ include::0001-incident-response.adoc[]
 include::0002-investigation-tasks.adoc[]
 
 include::0003-quick-reference.adoc[]
+
+include::0004-deployment-specific.adoc[]

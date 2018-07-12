@@ -17,4 +17,6 @@ This document is organized into a few broad sections:
   log entry, checking what instances of a service are registered in DNS, and so
   on.
 - <<_quick_references>> to HTTP status codes and headers used in Manta
+- <<_deployment_specific_details>>: this chapter lists a number of details that
+  your company or organization should separately document.
 - **General FAQ**
