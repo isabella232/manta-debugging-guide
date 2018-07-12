@@ -1,11 +1,13 @@
 :toc: left
 :doctype: book
-:toclevels: 4
+:toclevels: 2
 Manta Debugging Guide
 =====================
 
 include::0000-intro.adoc[]
 
 include::0001-incident-response.adoc[]
+
+include::0002-investigation-tasks.adoc[]
 
 include::0003-quick-reference.adoc[]

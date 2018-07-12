@@ -11,7 +11,5 @@ This document is organized into a few broad sections:
 
 - <<_incident_response_decision_tree>>: this chapter attempts to walk you through the process of understanding common problems with Manta.  This often links directly to specific common tasks later in the document.
 - **Specific investigation tasks**: this chapter covers a number of different specific tasks associated with debugging Manta, like finding a Muskie log entry, checking what instances of a service are registered in DNS, and so on.
-- **Quick references**
-  - **HTTP Status Codes**
-  - **Glossary of Manta-related terms**
+- <<_quick_references>> to HTTP status codes and headers used in Manta
 - **General FAQ**

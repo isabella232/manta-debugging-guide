@@ -1,2 +1,291 @@
 == Incident Response Decision Tree
 
+[source,text]
+----
+  - Has Muskie tail latency increased?
+    Yes: Check for increase in tail latency at electric-moray
+      Yes: Check for increase in tail latency at moray
+        Yes:
+	- Identify which shards are affected.
+	- Does it apply uniformly to all instances in the shard?
+	  Yes: Investigate PostgreSQL latency
+	  No: Examine specific instances with high latency
+	  - Are they over 85% CPU utilization?
+	    Yes: Is it mostly GC?
+	      Yes: There's likely a memory leak.  gcore and restart.
+	      No: Are there other instances using much less CPU?
+	      - Yes: The load is imbalanced.  Are all instances in DNS?
+                  Yes: This is likely a new bug requiring core file analysis of
+                       cueball state.
+                  No, and the ones not in DNS are the ones that are lightly
+                  loaded.
+                      Is registrar running in the zones that aren't in DNS?
+                      No: Determine why and try to bring up registrar.
+                      Yes: Registrar/ZK bug.
+            No (not mostly GC): profile it.
+        No (no tail latency at Moray):
+        - Does electric-moray tail latency affect only some instances?
+          No:
+          - Is CPU usage above 75% per process (300% per zone) for most
+            instances?
+            Yes: Pick one.  Is it mostly GC?
+	      Yes: There's likely a memory leak.  gcore and restart.
+              No:  Profile it.
+            Yes: Likely out of capacity.  Deploy more electric-moray instances.
+                 Also check whether workload has generally increased with CPU
+                 usage.
+            No: Trace Electric-Moray processes.
+          Yes: find an affected instance (zone and process):
+          - Is it over 85% CPU utilization?
+            Yes: Is it mostly GC?
+	      Yes: There's likely a memory leak.  gcore and restart.
+              No:  Profile it.
+- Investigating an increase in error rate
+  - See status code quick reference
+  - What type of error is it?
+    - 503
+      - Manta is reporting that it's overloaded.
+      - check for moray queueing
+      - check for moray p99 latency
+    - 500
+      - Find and investigate an individual request.
+    - XXX status code for out-of-space
+    - XXX status code for no storage nodes available (may be the same; may have
+      its own decision tree based on minnow records)
+    - 499
+      - Client abandoned upload.
+      - Check for muskie p99 latency
+    - 412, 404
+      - Innocuous.
+    - 401/403
+      - Likely client problem, but not necessarily.
+----
+
+=== Investigating a decrease in overall throughput
+
+Start here if you have reason to believe that inbound or outbound throughput to
+Manta has recently been reduced.
+
+* **Has the error rate increased?**  Check recent historical metrics for an
+  increase in 400-level or 500-level errors.
+** **Yes, there's an increase in the overall error rate.**  See
+   <<_investigating_an_increase_in_error_rate>>.  It may be that many requests
+   that were previously accounting for throughput are now failing.  (If the
+   error rate is not high enough to account for the change in throughput, then
+   it may be useful to investigate latency instead.)
+** **No, the error rate is unchanged.**  **Has webapi latency increased?**  Check
+   recent historical metrics for an increase in average latency, p90 latency, or
+   p95 latency.
+*** **Yes, webapi latency has increased.**  See
+    <<_investigating_an_increase_in_latency>>.
+*** **No, webapi latency is unchanged or lower.**  If there are no errors and no
+    increased latency, then Manta appears healthy.  Check upstream network
+    connections, client metrics, and client behavior.  (e.g., has the client
+    changed its workload?)
+
+**Background:** By definition, the throughput of the system (either inbound or
+outbound) is the number of `completed requests per second` times `average
+request size` (in terms of inbound or outbound bytes, depending on which
+throughput you're interested in).  *If throughput is lower, then one of the
+following is likely true:*
+
+1. *There are fewer requests per second because there's a fixed concurrency and
+   average request latency has increased.*  This is generally a server problem.
+   For example, it's common for there to be a fixed number of clients, each with
+   a fixed maximum concurrency.  In that situation, if Manta requests start
+   taking twice as long, then the number of requests completed per second will
+   naturally be cut in half, cutting overall throughput in half.
+2. *Average request size has reduced because requests are failing (resulting in
+   small requests).*  This is generally a server problem, though it could also be
+   a client problem.  For example, if the average upload is 10 MiB, but suddenly
+   10% of requests are failing before they reach the upload stage, overall
+   throughput is likely to degrade by 10%, since 10% of requests are now
+   uploading almost no data.
+3. *There are fewer requests per second because clients are making fewer
+   requests.*  This would be a client change (and may not be an issue).  For
+   example, this could happen when an operator turns off some clients.
+4. *Average request size has reduced because of a deliberate change in the
+   client workload.*  This would be a client change (and may not be an issue).
+
+=== Investigating an increase in error rate
+
+=== Investigating an increase in latency
+
+=== Investigating a specific request that has failed
+
+Start here if you want to understand why a specific request has failed.  These
+steps will help you find corresponding log entries with more detail.
+
+Ideally, you'll want to have:
+
+- the `x-server-name` header from the response
+- the `x-request-id` header from the response
+- the approximate time of the response (which calendar hour it was sent)
+- the IP address that the client used to reach Manta
+
+In many cases, you can get by with only some of this information.  The more
+information you have, the easier (and faster) it will be to find more
+information.
+
+If you find the log entry, see <<_understanding_a_muskie_log_entry>> for
+details.  If you find none, see <<_if_there_is_no_muskie_log_entry>>.
+
+==== If you have the `x-request-id` and `x-server-name` headers
+
+The `x-server-name` header gives you the uuid for the "webapi" zone that
+processed this request.
+
+* **Was the request completed after the top of the current hour?**
+** **Yes, the request was handled after the top of the hour.** The log entry will
+   be inside the Muskie zone.  First, <<_locate_a_specific_zone, find the
+   datacenter where the Muskie zone that handled the request is deployed>>.
+   From the headnode of that datacenter, use `manta-oneach` to search the Muskie
+   log file for the request id:
++
+[source,text]
+----
+manta-oneach -z WEBAPI_ZONE_UUID 'grep REQUEST_ID /var/log/muskie.log' | bunyan
+----
++
+filling in `WEBAPI_ZONE_UUID` from the `x-server-name` header and `REQUEST_ID`
+from the `x-request-id` header.
+** **No, the request was handled earlier than that.**  The log entry will
+generally be in a historical log file inside Manta itself.  Use `mlogin` or
+`mget` to fetch the path:
++
+[source,text]
+----
+/poseidon/stor/logs/muskie/YYYY/MM/DD/HH/UUID8.log
+----
++
+where `YYYY/MM/DD/HH` represent the year, month, day, and hour when the request
+completed and `UUID8` is the first 8 characters of the `x-server-name` header.
+If this object does not exist in Manta, and Manta has been having availability
+issues, then the historical log file may still be inside the corresponding
+"webapi" zone.  <<_log_into_a_specific_zone, Log into the "webapi" zone>> and
+use `grep` to search for the request ID in the files in `/var/log/manta/upload`.
+** **I don't know when the request was handled.**  In this case, you need to
+   check all of the log files mentioned above.  You may be able to use a Manta
+   job to scan a large number of historical files at once.  For example, you can
+   search all of a day's log files for one server using:
++
+[source,text]
+----
+mfind -t o -n UUID8.log /poseidon/stor/logs/muskie/YYYY/MM/DD |
+    mjob create -o -m 'grep REQUEST_ID || true' -r bunyan
+----
++
+As before, `UUID8` is the first 8 characters of the `x-server-name` header.
+
+If you find the log entry, see <<_understanding_a_muskie_log_entry>> for
+details.  If you find none, see <<_if_there_is_no_muskie_log_entry>>.
+
+==== If you have the `x-request-id`, but no `x-server-name`
+
+In this case, you have to check the log files for all "webapi" zones to find the
+log entry.
+
+* **Was the request completed since the top of the current hour?**
+** **Yes, the request was handled since the top of the hour.** The log entry will
+   be inside the Muskie zone.  Separately for **each datacenter in this Manta**,
+   use `manta-oneach` to search all the Muskie logs:
++
+[source,text]
+----
+manta-oneach -s webapi 'grep REQUEST_ID /var/log/muskie.log' | bunyan
+----
++
+** **No, the request was handled earlier than that.**  Use a job to search
+historical logs with names:
++
+[source,text]
+----
+/poseidon/stor/logs/muskie/YYYY/MM/DD/HH/*.log
+----
++
+where `YYYY/MM/DD/HH` represent the year, month, day, and hour when the request
+completed.
++
+For example, you can search all log files for a particular hour with:
++
+[source,text]
+----
+mfind -t o /poseidon/stor/logs/muskie/YYYY/MM/DD/HH |
+    mjob create -o -m 'grep REQUEST_ID || true' -r bunyan
+----
++
+** **I don't know when the request was handled.**  In this case, you need to
+   check all of the log files mentioned above.
+
+If you find the log entry, see <<_understanding_a_muskie_log_entry>> for
+details.  If you find none, see <<_if_there_is_no_muskie_log_entry>>.
+
+
+==== If you don't have the `x-request-id`
+
+If you don't have the request id, then you'll need some other information about
+the request that you can use to filter it.  Examples include:
+
+- the name of the account, if that account only made a few requests around the
+  time in question
+- the path that was used, if that's relatively unique among requests
+- a particular client header that's somewhat uncommon
+- a very small time window in which the request may have happened
+
+If you have this sort of information, your best bet is to use some combination
+of `grep` or `json` to scan all of the log entries for the appropriate time.
+
+TIP: When working out a `grep` or `json` pipeline, it's helpful to use `mlogin`
+to get an interactive shell for a particular Muskie log file.  There, you can
+practice your shell pipeline a few times until it matches what you want,
+possibly using slightly different parameters (e.g., a different account name)
+than you'll use for the real search, since you probably didn't happen to pick a
+log file with the precise entry you're looking for).  Then run that same shell
+pipeline in a Manta job over a much larger number of Muskie log files.
+
+If you find the log entry, see <<_understanding_a_muskie_log_entry>> for
+details.  If you find none, see <<_if_there_is_no_muskie_log_entry>>.
+
+==== If there is no Muskie log entry
+
+There's a difference between there being *no* Muskie log entry and *not being
+able to find* the Muskie log entry for a request.
+
+You may **know** that there's no log entry for a request if:
+
+* you have the rough timestamp and x-server-name header, found a non-empty log
+  for that server for that hour, and there's no entry for the request in it, or
+* you know the rough timestamp of the request, found non-empty log files for all
+  servers for that hour, and there's no matching request
+
+Otherwise, it's possible that the log entry was lost (e.g., if a log file was
+lost or clobbered, due to a bug or extended availability loss).
+
+* **Did the HTTP response contain an `x-server-name` or `x-request-id` header?**
+** **Yes, there was a response with these headers.**  In this case, a Muskie
+   instance definitely handled the request.  There should be a log entry.
+** **There was a response, but it did not contain these headers.**  In this
+   case, the response very likely came from the load balancer and _not_ Muskie.
+   See <<_finding_a_load_balancer_log_entry>> to find more information about the
+   request.  This typically happens for one of two reasons:
+*** Muskie took too long (usually more than two minutes) to handle the request.
+    Note that even though the load balancer may have reported a 500-level error,
+    the request may have completed successfully (or failed for some other
+    reason) inside Muskie.
+*** Muskie did process the request, but it just took longer than the load
+    balancer timeout.  This is often a sign of high latency at the metadata
+    tier.
+*** Muskie stopped processing a request.  This would be a bug in Muskie.  It
+    often leads to file descriptor leaks and memory leaks, so it's very serious.
+    Examples: MANTA-3338, https://smartos.org/bugview/MANTA-2916[MANTA-2916],
+    https://smartos.org/bugview/MANTA-2907[MANTA-2907].
+*** Muskie sent an invalid HTTP response.  (This is very uncommon.  Example:
+    http://smartos.org/bugview/MANTA-3489[MANTA-3489])
+** **There was no response, or the client timed out before receiving a
+  response.**  It would be very unusual for the system to produce no response
+  within 2 minutes of a request being completed, but it's not uncommon for a
+  client to give up before receiving a response.
+** **I don't know if there was a response.**
+
+In all of these cases, you can get more information about what happened by
+<<_finding_a_load_balancer_log_entry>>.

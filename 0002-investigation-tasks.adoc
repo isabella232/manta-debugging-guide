@@ -1,0 +1,13 @@
+== Investigation tasks
+
+=== Locate a specific zone
+
+=== Log into a specific zone
+
+=== Understanding a Muskie log entry
+
+XXX talk about common stack traces?
+
+=== Finding a load balancer log entry
+
+=== Understanding a load balancer log entry
