@@ -6,7 +6,7 @@
 #
 # Variables related to the guide itself and its dependencies.
 #
-GUIDE_HTML             = debugging-guide.html
+GUIDE_HTML             = index.html
 GUIDE_DEPS             = debugging-guide.adoc \
                          0000-intro.adoc \
                          0001-incident-response.adoc \
