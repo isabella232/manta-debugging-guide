@@ -1,4 +1,8 @@
-== Investigation tasks
+== Basic investigation tasks
+
+=== Checking metrics
+
+// error rate, muskie tail latency, moray queue depth, moray tail latency
 
 === Locate a specific zone
 
@@ -7,7 +11,77 @@
 === Understanding a Muskie log entry
 
 XXX talk about common stack traces?
+XXX that should include 503 from 'No storage nodes available for this request'
+
+=== Understanding latency for a specific request
 
 === Finding a load balancer log entry
 
 === Understanding a load balancer log entry
+
+=== Details about specific error messages
+
+==== `No storage nodes available for this request`
+
+==== `Not enough free space for ... MB`
+
+This code (associated with 507 errors) indicates that Manta does not have enough
+space available on any storage nodes for the write _that was requested_.  This
+would be surprising in production environments, although it's easy to induce
+even in production by requesting an absurd size.  For example, you'll see this
+if you attempt to upload an enormous object:
+
+[source,text]
+----
+$ mput -H 'max-content-length: 1125899906842624' /dap/stor/waytoobig
+mput: NotEnoughSpaceError: not enough free space for 1073741824 MB
+----
+
+https://apidocs.joyent.com/manta/api.html#PutObject[Recall that Manta supports
+two kinds of uploads]: streaming and fixed-length.
+
+Streaming uploads are specified using the `transfer-encoding: chunked` header.
+In this case, the space allocated up front (and validated) is specified by the
+`max-content-length` header.  If that header is missing, a default value is used
+_that is sometimes too large in some development environments_, which can cause
+streaming uploads to fail in development environments.
+
+If an object PUT does not specify `transfer-encoding: chunked`, then it must
+specify `content-length`, in which case that value is used for allocation (and
+validation).
+
+=== Locating metadata for an object
+
+=== Locating a particular server
+
+=== Locating a particular zone
+
+=== Locating a particular database shard
+
+=== Save debugging state and restart a process
+
+// TODO include filing a bug
+
+=== Investigating service discovery
+
+// TODO what's in DNS
+
+=== Investigating why a process is on-CPU
+
+// TODO profiling a busy process
+
+=== Investigating why a process is off-CPU
+
+=== Check for a garbage collection issue (or memory leak)
+
+//    - Check if the process is on-CPU
+//    - Checking if a process is doing GC
+//    - Check the vsz/rss
+//    - Gcore and restart
+//    - Watch for a few minutes.  Is it better?
+//      Yes: check other instances for vsz/rss and restart them
+//      No: maybe leak is too fast?
+//      - Was there a recent change that may have introduced this?
+//        Yes: rollback
+//        No: debug memory leak
+

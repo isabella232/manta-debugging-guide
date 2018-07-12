@@ -30,8 +30,9 @@ Here we cover only status codes with particular meanings within Manta or that ar
 | 499          | (not in HTTP)   | The 499 status is used to indicate that the client appeared to abandon the request.  (In this case, it's not possible to send a response.  The 499 code is used for internal logging and statistics.)  This was originally used in nginx.
 | 500          | `Internal Server Error` | Catch-all code for a failure to process this request.
 | 502          | `Bad Gateway`           | Historically, this code was emitted by Manta when requests took more than two minutes to complete.  This was an artifact of the load balancer.  Modern versions of Manta report this as a 503.
-| 503          | `Service Unavailable`   | This code generally indicates that the system is overloaded and cannot process more work.  In practice, this currently means that a particular metadata shard's queue is full.
+| 503          | `Service Unavailable`   | This code generally indicates that the system is overloaded and cannot process more work.  In practice, this currently means that a particular metadata shard's queue is full, that Muskie took too long to respond to the request, or that there aren't enough working storage nodes with enough disk space to satisfy this upload.
 | 504          | `Gateway Timeout`       | Similar to 502.
+| 507          | `Not Enough Space`      | The Manta deployment is out of physical disk space for new objects.
 |================================================
 
 Generally:
@@ -113,3 +114,13 @@ Importantly, because of the two modes of transfer described above (under <<_stre
 - When possible, clients and servers should generally send a `Content-MD5` header.  This allows the remote side to compute an MD5 checksum on the body and verify that the correct bytes were sent.  For object downloads, Manta always stores the MD5 computed from the original upload and it always provides the `Content-MD5` header on responses.  If clients provide a `Content-MD5` header on uploads, then Manta always validates that it receives it.  When both of these mechanisms are used by both client and server, a client can be sure of end-to-end integrity.
 
 *Note:* It's been noted that MD5 checksums are deprecated for security purposes due to the risk of collisions.  While they are likely not appropriate for security, MD5 collisions remain rare enough for MD5 checksums to be used for basic integrity checks.
+
+
+=== Glossary of Manta terms
+
+latency
+tail latency
+component names
+shards
+instances / zones
+services (SMF vs. SAPI)

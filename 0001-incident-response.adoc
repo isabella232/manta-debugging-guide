@@ -109,6 +109,126 @@ following is likely true:*
 
 === Investigating an increase in error rate
 
+There are a couple of major kinds of error.
+
+- A **500-level response** (that is, a well-formed HTTP response with a status
+  code between 500 and 599) generally reflects a problem with Manta.
+- A **400-level response** (that is, a well-formed HTTP response with a status
+  code between 400 and 499) may happen under normal operation and may indicate
+  no problem at all, or it may reflect a client issue.  In rare cases, a 499
+  response can reflect a server issue.  The details depend on the specific type
+  of error and whether the client expects it or not.
+- If the client gives up before the server has sent a response, then the client
+  will likely report a _client timeout_, while the server will likely report a
+  connection that was abruptly closed by the client.
+- If there's a networking issue that causes the client or server to abandon the
+  connection, both sides will generally report an explicit socket error.
+
+
+==== Response code 507
+
+See <<_not_enough_free_space_for_mb>>.
+
+// TODO cover 504?
+
+==== Response code 503
+
+A `503 Service Unavailable` response generally indicates that Manta is refusing
+some requests because it is overloaded or some dependencies are not functioning.
+There are three major cases where this happens:
+
+* At least one Moray instance is at its maximum queue length and is refusing new
+  requests.
+* There are not enough online storage nodes to handle the upload.
+* Muskie did not respond to the request quickly enough.
+
+In all cases, you can <<_investigating_a_specific_request_that_has_failed>> to
+find the cause of the failure.
+
+**If you already have a particular 503 response,** you can quickly determine
+which of these cases caused it.
+
+* **Does the response have `x-server-name` and `x-request-id` headers?**
+** **No, these headers are missing.**  This indicates Muskie took too long to
+   respond.  See either <<_investigating_a_specific_request_that_has_failed>>
+   (for just this one request) or <<_investigating_an_increase_in_latency>> (for
+   a large number).
+** **Yes, these headers are present.**  In this case, the error message in the
+   body of the response will indicate the problem.  See
+   <<_investigating_specific_error_messages>>.
+
+**If you have a large number of 503s,** you can check for systemic causes:
+
+* **Are there Moray shards with high queue lengths?**  Check recent historical
+  metrics for Moray queue length.  If any zone or shard has more than a few
+  thousand items queued, it may be causing 503-level responses.
+** **Yes, some shards have long Moray queues.**  See
+  <<_investigating_elevated_moray_latency>>.
+** **No shard has long queues.**  See <<_finding_a_failed_request>> to find a
+   Muskie log entry with more details about the source of the 503.
+
+// TODO can this come from 502 -- muskie timeout?  in that case, need to track
+// down load balancer log entry.  This is discussed earlier.
+
+
+==== Response code 502
+
+Manta no longer issues this response code.  If you see it, please file a bug.
+Historically, this was associated with slow Muskie requests.  These are
+generally now reported as 503s.
+
+
+==== Response code 500
+
+This generally indicates a server-side bug.  See <<_finding_a_failed_request>>
+to learn why the request failed.
+
+
+==== Response code 499
+
+499 is an internal status code used to describe when a client appears to have
+abandoned a request.  Specifically, this is recorded when a client closes its
+socket before finishing a request.  In this case, there is no response, since
+the server may have no place to send it.
+
+499s may be seen if:
+
+* the client gave up (timed out) before the server sent an initial response
+  (e.g., a `100-continue`)
+* the client crashed (closing its sockets)
+* a network issue disrupted the connection between client and server
+
+**If you have a specific 499 request's Muskie log entry already** (as from a
+<<_finding_a_failed_request, Muskie log>>), was the latency fairly high?  (If
+you know the client's timeout, was the request latency longer than this
+timeout?)  Check the "latency" field in the Muskie log entry.  Also compare the
+`Date` header in the request with the timestamp of the log entry.  If these
+don't match up, the request may have been queued somewhere before being
+processed by Muskie.
+
+* **Yes, the request took several seconds (and/or longer than the client's
+  timeout).**  Elevated Muskie latency may be the reason for the 499.  See
+  either <<_understanding_latency_for_a_specific_request>> or (if you have a lot
+  of them) <<_investigating_an_increase_in_latency>>.
+* **No, the request was short (and/or shorter than the client's timeout).**
+  This appears to be a client issue.
+
+
+==== Other 400-level response codes
+
+These are usually client issues, though it's always possible there are
+server-side bugs that cause erroneous 400-level responses.  The only way to be
+sure is to examine the request and response to see if the response appears
+correct.
+
+// TODO find bug where too many ssh keys resulted in 401/403?
+
+
+==== Finding a failed request
+
+// TODO this section should talk about searching for them in logs OR reproducing
+// them as needed.
+
 === Investigating an increase in latency
 
 === Investigating a specific request that has failed
@@ -289,3 +409,10 @@ lost or clobbered, due to a bug or extended availability loss).
 
 In all of these cases, you can get more information about what happened by
 <<_finding_a_load_balancer_log_entry>>.
+
+=== Investigating elevated Electric-Moray latency
+
+=== Investigating elevated Moray latency
+
+=== Investigating elevated PostgreSQL latency
+

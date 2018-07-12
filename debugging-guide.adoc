@@ -1,6 +1,6 @@
 :toc: left
 :doctype: book
-:toclevels: 2
+:toclevels: 3
 Manta Debugging Guide
 =====================
 
