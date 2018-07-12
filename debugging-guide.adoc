@@ -4,6 +4,10 @@
 Manta Debugging Guide
 =====================
 
+**DRAFT DRAFT DRAFT**
+
+**This is an unreviewed DRAFT document.**
+
 include::0000-intro.adoc[]
 
 include::0001-incident-response.adoc[]

@@ -17,7 +17,7 @@ ASCIIDOC_OPTIONS       = -b html5
 #
 # Variables related to final output directories. 
 #
-OUT_DIR                = build
+OUT_DIR                = docs
 OUT_GUIDE              = $(OUT_DIR)/$(GUIDE_HTML)
 
 #
