@@ -1,7 +1,8 @@
+:toc: left
+:doctype: book
+:toclevels: 4
 Manta Debugging Guide
 =====================
-:toc: left
-:toclevels: 4
 
 include::0000-intro.adoc[]
 

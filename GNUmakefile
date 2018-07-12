@@ -11,7 +11,7 @@ GUIDE_DEPS             = debugging-guide.adoc \
                          0000-intro.adoc \
                          0001-incident-response.adoc \
                          0003-quick-reference.adoc
-ASCIIDOC_OPTIONS       = -b html5 -d book
+ASCIIDOC_OPTIONS       = -b html5
 
 #
 # Variables related to final output directories. 
@@ -22,7 +22,7 @@ OUT_GUIDE              = $(OUT_DIR)/$(GUIDE_HTML)
 #
 # Macros for command used in recipes
 #
-ASCIIDOC               = asciidoc -o $@ $(ASCIIDOC_OPTIONS) $<
+ASCIIDOC               = asciidoctor -o $@ $(ASCIIDOC_OPTIONS) $<
 MKDIRP                 = mkdir -p $@
 
 #
