@@ -92,6 +92,118 @@ following is likely true:*
 4. *Average request size has reduced because of a deliberate change in the
    client workload.*  This would be a client change (and may not be an issue).
 
+
+=== Investigating an increase in latency
+
+When there's reason to suspect an overall increase in webapi latency, real-time
+metric dashboards can be used to identify the source.  The first step is
+typically confirming whether latency is visible at webapi.
+
+[NOTE]
+====
+A Manta deployment can easily execute tens of thousands of requests per
+second, each with an associated latency.  It's useful to summarize a large
+number of latencies with a single number so that we can identify trends, both
+for raising alarms and for general situational awareness during incident
+response.
+
+**Average latency** is the sum of latencies divided by the request count.  This
+is useful for understanding changes in throughput, since throughput changes that
+result from increased latency would manifest as increased average latency.
+
+However, normal-looking averages can obscure high-latency requests that have an
+outsize impact on clients.  As a result, we often focus on **tail latency**, or
+the latencies of the slowest requests.  The notation *p99* refers to the 99th
+percentile latency, which is the latency value where 99% of requests completed
+within this latency.  If the p90 is 300ms, then 90% of requests completed within
+300ms.
+
+When making broad statements about latency, it's helpful to be specific about
+whether you're talking about average latency or tail latency.  However, the
+questions below are intentionally ambiguous, as increases in either average or
+tail latency might be cause for further investigation.
+====
+
+**Has latency at Muskie increased?**
+
+* **No, Muskie latency has not increased.**  There does not appear to be an
+  increase in latency from Manta.  If clients are reporting elevated latency,
+  try to confirm that.  One approach is to collect information from a client
+  about a specific slow request and <<_build_a_request_timeline, build a request
+  timeline>>.  This can
+  help determine if latency is coming from within Manta or not.
+* **Yes, Muskie latency has increased.**  At this point, you can
+  <<_finding_or_generating_a_failed_request, find or generate a specific slow
+  request>> and then <<_understanding_latency_for_a_specific_request, understand
+  its latency>>.
+  But when you're looking at a trend like this, it's often helpful to look at
+  latency at other parts of the system.  The next question is: **Has latency at
+  Electric-Moray increased?**
+** **Yes, latency has increased at Electric-Moray, too.**  In this case, **has
+   latency at Moray increased as well?**
+*** **Yes, latency has increased at Moray, too.** See below.
+*** **No, there's no corresponding increase in latency at Moray.**  This is
+   unusual.  There may be a problem with particular electric-moray instances, or
+   the whole tier may be overloaded.  See
+   <<_investigating_a_slow_tier_of_node_processes>>. 
+** **No, there's no corresponding increase in latency at Electric-Moray.**  This
+   is unusual.  There may be a problem with particular webapi instances, or the
+   whole tier may be overloaded.  See
+   <<_investigating_a_slow_tier_of_node_processes>>.
+
+If you found above that latency at Moray has increased, take a look at the
+Moray latency metrics broken out by shard name (or zonename, and then
+<<_finding_what_shard_e_particular_zone_is_part_of, map the zonenames to shard
+names>>).  Remember to ignore shard 1.  **Have multiple Moray shards seen an
+increase in latency?**
+
+* **No, only one shard has elevated latency.**  You'll need to dig into the
+  behavior of this shard.  See below.
+* **Yes, multiple Moray shards have elevated latency.**  Moray shards are
+  generally independent, so problems with multiple shards may need to be
+  investigated separately.  On the other hand, you may wind up looking at
+  system-wide PostgreSQL metrics next, in which case you may be able to answer
+  questions about several shards at once.
+
+If you've established that a particular shard's Moray latency has increased,
+the next step is to identify if it's Moray or PostgreSQL that's the source of
+the latency.  This is a bit more difficult than previous steps because we do not
+have metrics for p99 query latency from PostgreSQL.
+
+There are a couple of different questions to ask:
+
+* **Are all Moray zones affected in the same way?**  Specifically, compare tail
+  latency, average latency (if possible), and queue depth across zones for this
+  shard.  Are all of them elevated, or are some different than others?
+** **Yes, all Moray zones in this shard appear affected in the same way.**  This
+   suggests a problem with PostgreSQL rather than Moray.
+** **No, some Moray zones in this shard appear much more affected than others.**
+   This is more likely to reflect a problem with specific Moray instances rather
+   than PostgreSQL.  See the question below about database connections, and see
+   also <<_investigating_a_slow_tier_of_node_processes>>.
+* **Is there a high rate of Moray queueing on this shard, relative to other
+  shards?**  If there's a high rate of queueing, the database might be the
+  source of the latency.  If not, it's possible that Moray is the source of the
+  problem.
+* If there is queueing at Moray, check the number of backend 
+  connections (or processes) reported on the PostgreSQL dashboard.  **Does this
+  shard have the same number of database connections as other shards?**
+** **Yes, this shard has the same number of connections as other shards.** Move
+   on to other questions.
+** **No, this shard has fewer connections than other shards.**  This may
+   indicate a connection management problem at Moray.  If Moray instances lose
+   track of connections, they may be limited in how much work they can dispatch
+   to PostgreSQL, resulting in increased latency as requests queue up.
+** **No, this shard has far more connections than other shards.**  If this shard
+   has over 500 connections, that may indicate a problem with Moray.  There are
+   generally supposed to be at most 64 connections per Moray zone in this shard,
+   and we usually deploy 3-6 zones per shard.
+
+Based on these questions, if it seems like the problem is associated with
+PostgreSQL, see <<_investigating_postgresql_latency>>.  Otherwise, the problem
+is likely with Moray.  See <<_investigating_a_slow_tier_of_node_processes>>.
+
+
 === Investigating an increase in error rate
 
 There are a couple of major kinds of error.
@@ -209,8 +321,6 @@ correct.
 
 // TODO find bug where too many ssh keys resulted in 401/403?
 
-
-=== Investigating an increase in latency
 
 === Investigating a specific request that has failed
 

@@ -1,5 +1,13 @@
 == Basic investigation tasks
 
+=== Investigating a slow tier of Node processes
+
+// TODO talk about which tiers this applies to, confirming latency from
+// dashboards, finding individual slow instances, checking CPU usage, and
+// checking for GC problems
+
+=== Investigating PostgreSQL latency
+
 === Finding (or generating) a failed request
 
 When trying to understand either an explicit error or high latency, it can be
@@ -170,6 +178,11 @@ XXX that should include 503 from 'No storage nodes available for this request'
 
 === Understanding a load balancer log entry
 
+=== Build a request timeline
+
+// XXX talk about how to include client, load balancer, muskie, metadata, mako
+// details
+
 === Details about specific error messages
 
 ==== `No storage nodes available for this request`
@@ -223,6 +236,8 @@ component zones] in the Manta Operator's Guide.
 
 === Locating a particular database shard
 
+
+=== Finding what shard a particular zone is part of
 
 
 === Save debugging state and restart a process

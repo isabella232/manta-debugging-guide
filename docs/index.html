@@ -439,6 +439,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_incident_response_decision_tree">Incident Response Decision Tree</a>
 <ul class="sectlevel2">
 <li><a href="#_investigating_a_decrease_in_overall_throughput">Investigating a decrease in overall throughput</a></li>
+<li><a href="#_investigating_an_increase_in_latency">Investigating an increase in latency</a></li>
 <li><a href="#_investigating_an_increase_in_error_rate">Investigating an increase in error rate</a>
 <ul class="sectlevel3">
 <li><a href="#_response_code_507">Response code 507</a></li>
@@ -449,7 +450,6 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_other_400_level_response_codes">Other 400-level response codes</a></li>
 </ul>
 </li>
-<li><a href="#_investigating_an_increase_in_latency">Investigating an increase in latency</a></li>
 <li><a href="#_investigating_a_specific_request_that_has_failed">Investigating a specific request that has failed</a>
 <ul class="sectlevel3">
 <li><a href="#_if_you_have_the_x_request_id_and_x_server_name_headers">If you have the <code>x-request-id</code> and <code>x-server-name</code> headers</a></li>
@@ -465,6 +465,8 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </li>
 <li><a href="#_basic_investigation_tasks">Basic investigation tasks</a>
 <ul class="sectlevel2">
+<li><a href="#_investigating_a_slow_tier_of_node_processes">Investigating a slow tier of Node processes</a></li>
+<li><a href="#_investigating_postgresql_latency">Investigating PostgreSQL latency</a></li>
 <li><a href="#_finding_or_generating_a_failed_request">Finding (or generating) a failed request</a></li>
 <li><a href="#_checking_recent_historical_metrics">Checking recent historical metrics</a></li>
 <li><a href="#_locate_a_specific_zone">Locate a specific zone</a></li>
@@ -473,6 +475,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_understanding_latency_for_a_specific_request">Understanding latency for a specific request</a></li>
 <li><a href="#_finding_a_load_balancer_log_entry">Finding a load balancer log entry</a></li>
 <li><a href="#_understanding_a_load_balancer_log_entry">Understanding a load balancer log entry</a></li>
+<li><a href="#_build_a_request_timeline">Build a request timeline</a></li>
 <li><a href="#_details_about_specific_error_messages">Details about specific error messages</a>
 <ul class="sectlevel3">
 <li><a href="#_no_storage_nodes_available_for_this_request"><code>No storage nodes available for this request</code></a></li>
@@ -484,6 +487,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_locating_a_particular_server">Locating a particular server</a></li>
 <li><a href="#_locating_a_particular_zone">Locating a particular zone</a></li>
 <li><a href="#_locating_a_particular_database_shard">Locating a particular database shard</a></li>
+<li><a href="#_finding_what_shard_a_particular_zone_is_part_of">Finding what shard a particular zone is part of</a></li>
 <li><a href="#_save_debugging_state_and_restart_a_process">Save debugging state and restart a process</a></li>
 <li><a href="#_investigating_service_discovery">Investigating service discovery</a></li>
 <li><a href="#_investigating_why_a_process_is_on_cpu">Investigating why a process is on-CPU</a></li>
@@ -674,6 +678,192 @@ client workload.</strong>  This would be a client change (and may not be an issu
 </div>
 </div>
 <div class="sect2">
+<h3 id="_investigating_an_increase_in_latency">Investigating an increase in latency</h3>
+<div class="paragraph">
+<p>When there&#8217;s reason to suspect an overall increase in webapi latency, real-time
+metric dashboards can be used to identify the source.  The first step is
+typically confirming whether latency is visible at webapi.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Note</div>
+</td>
+<td class="content">
+<div class="paragraph">
+<p>A Manta deployment can easily execute tens of thousands of requests per
+second, each with an associated latency.  It&#8217;s useful to summarize a large
+number of latencies with a single number so that we can identify trends, both
+for raising alarms and for general situational awareness during incident
+response.</p>
+</div>
+<div class="paragraph">
+<p><strong>Average latency</strong> is the sum of latencies divided by the request count.  This
+is useful for understanding changes in throughput, since throughput changes that
+result from increased latency would manifest as increased average latency.</p>
+</div>
+<div class="paragraph">
+<p>However, normal-looking averages can obscure high-latency requests that have an
+outsize impact on clients.  As a result, we often focus on <strong>tail latency</strong>, or
+the latencies of the slowest requests.  The notation <strong>p99</strong> refers to the 99th
+percentile latency, which is the latency value where 99% of requests completed
+within this latency.  If the p90 is 300ms, then 90% of requests completed within
+300ms.</p>
+</div>
+<div class="paragraph">
+<p>When making broad statements about latency, it&#8217;s helpful to be specific about
+whether you&#8217;re talking about average latency or tail latency.  However, the
+questions below are intentionally ambiguous, as increases in either average or
+tail latency might be cause for further investigation.</p>
+</div>
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p><strong>Has latency at Muskie increased?</strong></p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>No, Muskie latency has not increased.</strong>  There does not appear to be an
+increase in latency from Manta.  If clients are reporting elevated latency,
+try to confirm that.  One approach is to collect information from a client
+about a specific slow request and <a href="#_build_a_request_timeline">build a request
+timeline</a>.  This can
+help determine if latency is coming from within Manta or not.</p>
+</li>
+<li>
+<p><strong>Yes, Muskie latency has increased.</strong>  At this point, you can
+<a href="#_finding_or_generating_a_failed_request">find or generate a specific slow
+request</a> and then <a href="#_understanding_latency_for_a_specific_request">understand
+its latency</a>.
+But when you&#8217;re looking at a trend like this, it&#8217;s often helpful to look at
+latency at other parts of the system.  The next question is: <strong>Has latency at
+Electric-Moray increased?</strong></p>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Yes, latency has increased at Electric-Moray, too.</strong>  In this case, <strong>has
+latency at Moray increased as well?</strong></p>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Yes, latency has increased at Moray, too.</strong> See below.</p>
+</li>
+<li>
+<p><strong>No, there&#8217;s no corresponding increase in latency at Moray.</strong>  This is
+unusual.  There may be a problem with particular electric-moray instances, or
+the whole tier may be overloaded.  See
+<a href="#_investigating_a_slow_tier_of_node_processes">Investigating a slow tier of Node processes</a>.</p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p><strong>No, there&#8217;s no corresponding increase in latency at Electric-Moray.</strong>  This
+is unusual.  There may be a problem with particular webapi instances, or the
+whole tier may be overloaded.  See
+<a href="#_investigating_a_slow_tier_of_node_processes">Investigating a slow tier of Node processes</a>.</p>
+</li>
+</ul>
+</div>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>If you found above that latency at Moray has increased, take a look at the
+Moray latency metrics broken out by shard name (or zonename, and then
+<a href="#_finding_what_shard_e_particular_zone_is_part_of">map the zonenames to shard
+names</a>).  Remember to ignore shard 1.  <strong>Have multiple Moray shards seen an
+increase in latency?</strong></p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>No, only one shard has elevated latency.</strong>  You&#8217;ll need to dig into the
+behavior of this shard.  See below.</p>
+</li>
+<li>
+<p><strong>Yes, multiple Moray shards have elevated latency.</strong>  Moray shards are
+generally independent, so problems with multiple shards may need to be
+investigated separately.  On the other hand, you may wind up looking at
+system-wide PostgreSQL metrics next, in which case you may be able to answer
+questions about several shards at once.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>If you&#8217;ve established that a particular shard&#8217;s Moray latency has increased,
+the next step is to identify if it&#8217;s Moray or PostgreSQL that&#8217;s the source of
+the latency.  This is a bit more difficult than previous steps because we do not
+have metrics for p99 query latency from PostgreSQL.</p>
+</div>
+<div class="paragraph">
+<p>There are a couple of different questions to ask:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Are all Moray zones affected in the same way?</strong>  Specifically, compare tail
+latency, average latency (if possible), and queue depth across zones for this
+shard.  Are all of them elevated, or are some different than others?</p>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Yes, all Moray zones in this shard appear affected in the same way.</strong>  This
+suggests a problem with PostgreSQL rather than Moray.</p>
+</li>
+<li>
+<p><strong>No, some Moray zones in this shard appear much more affected than others.</strong>
+This is more likely to reflect a problem with specific Moray instances rather
+than PostgreSQL.  See the question below about database connections, and see
+also <a href="#_investigating_a_slow_tier_of_node_processes">Investigating a slow tier of Node processes</a>.</p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p><strong>Is there a high rate of Moray queueing on this shard, relative to other
+shards?</strong>  If there&#8217;s a high rate of queueing, the database might be the
+source of the latency.  If not, it&#8217;s possible that Moray is the source of the
+problem.</p>
+</li>
+<li>
+<p>If there is queueing at Moray, check the number of backend
+connections (or processes) reported on the PostgreSQL dashboard.  <strong>Does this
+shard have the same number of database connections as other shards?</strong></p>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Yes, this shard has the same number of connections as other shards.</strong> Move
+on to other questions.</p>
+</li>
+<li>
+<p><strong>No, this shard has fewer connections than other shards.</strong>  This may
+indicate a connection management problem at Moray.  If Moray instances lose
+track of connections, they may be limited in how much work they can dispatch
+to PostgreSQL, resulting in increased latency as requests queue up.</p>
+</li>
+<li>
+<p><strong>No, this shard has far more connections than other shards.</strong>  If this shard
+has over 500 connections, that may indicate a problem with Moray.  There are
+generally supposed to be at most 64 connections per Moray zone in this shard,
+and we usually deploy 3-6 zones per shard.</p>
+</li>
+</ul>
+</div>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Based on these questions, if it seems like the problem is associated with
+PostgreSQL, see <a href="#_investigating_postgresql_latency">Investigating PostgreSQL latency</a>.  Otherwise, the problem
+is likely with Moray.  See <a href="#_investigating_a_slow_tier_of_node_processes">Investigating a slow tier of Node processes</a>.</p>
+</div>
+</div>
+<div class="sect2">
 <h3 id="_investigating_an_increase_in_error_rate">Investigating an increase in error rate</h3>
 <div class="paragraph">
 <p>There are a couple of major kinds of error.</p>
@@ -858,10 +1048,6 @@ sure is to examine the request and response to see if the response appears
 correct.</p>
 </div>
 </div>
-</div>
-<div class="sect2">
-<h3 id="_investigating_an_increase_in_latency">Investigating an increase in latency</h3>
-
 </div>
 <div class="sect2">
 <h3 id="_investigating_a_specific_request_that_has_failed">Investigating a specific request that has failed</h3>
@@ -1184,6 +1370,14 @@ client to give up before receiving a response.</p>
 <h2 id="_basic_investigation_tasks">Basic investigation tasks</h2>
 <div class="sectionbody">
 <div class="sect2">
+<h3 id="_investigating_a_slow_tier_of_node_processes">Investigating a slow tier of Node processes</h3>
+
+</div>
+<div class="sect2">
+<h3 id="_investigating_postgresql_latency">Investigating PostgreSQL latency</h3>
+
+</div>
+<div class="sect2">
 <h3 id="_finding_or_generating_a_failed_request">Finding (or generating) a failed request</h3>
 <div class="paragraph">
 <p>When trying to understand either an explicit error or high latency, it can be
@@ -1375,6 +1569,10 @@ XXX that should include 503 from <em>No storage nodes available for this request
 
 </div>
 <div class="sect2">
+<h3 id="_build_a_request_timeline">Build a request timeline</h3>
+
+</div>
+<div class="sect2">
 <h3 id="_details_about_specific_error_messages">Details about specific error messages</h3>
 <div class="sect3">
 <h4 id="_no_storage_nodes_available_for_this_request"><code>No storage nodes available for this request</code></h4>
@@ -1443,6 +1641,10 @@ component zones</a> in the Manta Operator&#8217;s Guide.</p>
 </div>
 <div class="sect2">
 <h3 id="_locating_a_particular_database_shard">Locating a particular database shard</h3>
+
+</div>
+<div class="sect2">
+<h3 id="_finding_what_shard_a_particular_zone_is_part_of">Finding what shard a particular zone is part of</h3>
 
 </div>
 <div class="sect2">
