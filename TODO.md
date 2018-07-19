@@ -1,6 +1,7 @@
 Background context:
 - links to specific sections of the Manta Operator's Guide
 - artedi, metrics, starfish
+- move operator guide references directly into this guide
 
 General FAQs:
 - What's with the spikes at the top of the hour?

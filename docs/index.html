@@ -447,7 +447,6 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_response_code_500">Response code 500</a></li>
 <li><a href="#_response_code_499">Response code 499</a></li>
 <li><a href="#_other_400_level_response_codes">Other 400-level response codes</a></li>
-<li><a href="#_finding_a_failed_request">Finding a failed request</a></li>
 </ul>
 </li>
 <li><a href="#_investigating_an_increase_in_latency">Investigating an increase in latency</a></li>
@@ -466,6 +465,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </li>
 <li><a href="#_basic_investigation_tasks">Basic investigation tasks</a>
 <ul class="sectlevel2">
+<li><a href="#_finding_or_generating_a_failed_request">Finding (or generating) a failed request</a></li>
 <li><a href="#_checking_recent_historical_metrics">Checking recent historical metrics</a></li>
 <li><a href="#_locate_a_specific_zone">Locate a specific zone</a></li>
 <li><a href="#_log_into_a_specific_zone">Log into a specific zone</a></li>
@@ -480,6 +480,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </ul>
 </li>
 <li><a href="#_locating_metadata_for_an_object">Locating metadata for an object</a></li>
+<li><a href="#_locating_actual_data_for_an_object">Locating actual data for an object</a></li>
 <li><a href="#_locating_a_particular_server">Locating a particular server</a></li>
 <li><a href="#_locating_a_particular_zone">Locating a particular zone</a></li>
 <li><a href="#_locating_a_particular_database_shard">Locating a particular database shard</a></li>
@@ -774,8 +775,9 @@ thousand items queued, it may be causing 503-level responses.</p>
 <a href="#_investigating_elevated_moray_latency">Investigating elevated Moray latency</a>.</p>
 </li>
 <li>
-<p><strong>No shard has long queues.</strong>  See <a href="#_finding_a_failed_request">Finding a failed request</a> to find a
-Muskie log entry with more details about the source of the 503.</p>
+<p><strong>No shard has long queues.</strong>  See
+<a href="#_finding_or_generating_a_failed_request">Finding (or generating) a failed request</a> to find a Muskie log entry with
+more details about the source of the 503.</p>
 </li>
 </ul>
 </div>
@@ -794,8 +796,8 @@ generally now reported as 503s.</p>
 <div class="sect3">
 <h4 id="_response_code_500">Response code 500</h4>
 <div class="paragraph">
-<p>This generally indicates a server-side bug.  See <a href="#_finding_a_failed_request">Finding a failed request</a>
-to learn why the request failed.</p>
+<p>This generally indicates a server-side bug.  See
+<a href="#_finding_or_generating_a_failed_request">Finding (or generating) a failed request</a> to learn why the request failed.</p>
 </div>
 </div>
 <div class="sect3">
@@ -825,10 +827,10 @@ the server may have no place to send it.</p>
 </div>
 <div class="paragraph">
 <p><strong>If you have a specific 499 request&#8217;s Muskie log entry already</strong> (as from a
-<a href="#_finding_a_failed_request">Muskie log</a>), was the latency fairly high?  (If
-you know the client&#8217;s timeout, was the request latency longer than this
-timeout?)  Check the "latency" field in the Muskie log entry.  Also compare the
-<code>Date</code> header in the request with the timestamp of the log entry.  If these
+<a href="#_finding_or_generating_a_failed_request">Muskie log</a>), was the latency fairly
+high?  (If you know the client&#8217;s timeout, was the request latency longer than
+this timeout?)  Check the "latency" field in the Muskie log entry.  Also compare
+the <code>Date</code> header in the request with the timestamp of the log entry.  If these
 don&#8217;t match up, the request may have been queued somewhere before being
 processed by Muskie.</p>
 </div>
@@ -855,10 +857,6 @@ server-side bugs that cause erroneous 400-level responses.  The only way to be
 sure is to examine the request and response to see if the response appears
 correct.</p>
 </div>
-</div>
-<div class="sect3">
-<h4 id="_finding_a_failed_request">Finding a failed request</h4>
-
 </div>
 </div>
 <div class="sect2">
@@ -894,6 +892,10 @@ steps will help you find corresponding log entries with more detail.</p>
 <p>In many cases, you can get by with only some of this information.  The more
 information you have, the easier (and faster) it will be to find more
 information.</p>
+</div>
+<div class="paragraph">
+<p>You might also try <a href="#_finding_or_generating_a_failed_request">generating your
+own request</a> to investigate.</p>
 </div>
 <div class="paragraph">
 <p>If you find the log entry, see <a href="#_understanding_a_muskie_log_entry">Understanding a Muskie log entry</a> for
@@ -1182,6 +1184,166 @@ client to give up before receiving a response.</p>
 <h2 id="_basic_investigation_tasks">Basic investigation tasks</h2>
 <div class="sectionbody">
 <div class="sect2">
+<h3 id="_finding_or_generating_a_failed_request">Finding (or generating) a failed request</h3>
+<div class="paragraph">
+<p>When trying to understand either an explicit error or high latency, it can be
+helpful to investigate the log entry written by "webapi" for a specific request.</p>
+</div>
+<div class="paragraph">
+<p><strong>Do you already have information about a specific request you want to
+investigate?</strong></p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Yes, I have information about a specific request.</strong> See
+<a href="#_investigating_a_specific_request_that_has_failed">Investigating a specific request that has failed</a>.</p>
+</li>
+<li>
+<p><strong>No, I don&#8217;t have information about a specific request yet.</strong>  Move on.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Next question: <strong>does the problem appear to be reproducible?</strong>  Try reproducing
+the problem with the <a href="https://github.com/joyent/node-manta">node-manta</a>
+command-line tools (e.g., <code>mls</code>).  You can use the <code>-v</code> flag and redirect stderr
+to the <a href="https://github.com/trentm/node-bunyan">bunyan</a> command to see request and
+response headers, like this:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-text" data-lang="text">$ mls -v /poseidon/public 2&gt; &gt;(bunyan)
+[2018-07-19T21:18:48.146Z] DEBUG: mls/MantaClient/7054 on zathras.local (/Users/dap/install/node-v4.9.1-darwin-x64/lib/node_modules/manta/lib/client.js:1536 in ls): ls: entered (req_id=4b4927be-fc1f-4dd8-88fe-2ae75dcbc262, path=/poseidon/public)
+[2018-07-19T21:18:48.148Z] DEBUG: mls/MantaClient/7054 on zathras.local (/Users/dap/install/node-v4.9.1-darwin-x64/lib/node_modules/manta/lib/client.js:1128 in info): info: entered (req_id=0f34c68e-2072-405a-be3a-248e8020f1ba, path=/poseidon/public, id=0f34c68e-2072-405a-be3a-248e8020f1ba, query={})
+    headers: {
+      "accept": "application/json, */*",
+      "x-request-id": "0f34c68e-2072-405a-be3a-248e8020f1ba"
+    }
+[2018-07-19T21:18:48.189Z] TRACE: mls/MantaClient/7054 on zathras.local (/Users/dap/install/node-v4.9.1-darwin-x64/lib/node_modules/manta/node_modules/restify-clients/lib/HttpClient.js:314 in rawRequest): request sent
+    HEAD /poseidon/public HTTP/1.1
+    Host: us-east.manta.joyent.com:null
+    accept: application/json, */*
+    x-request-id: 0f34c68e-2072-405a-be3a-248e8020f1ba
+    date: Thu, 19 Jul 2018 21:18:48 GMT
+    authorization: Signature keyId="/dap/keys/56:f3:e1:56:3d:e6:f7:83:a9:ce:19:5d:62:ba:5c:1f",algorithm="rsa-sha1",headers="date",signature="kG7IydhNO06ImfI6hFzFXXoSrWT6+2kCcDUC3swGebIr7YxeDcLEWMxGzB4z5lC29Vv7kgpLGaTc218m+63D0Y3M84LTNCvM1Va5COetXhIHkkAlBtXpJt5MUjqsRFK1xrpGKJjDc1QIBGSQIDmh4p6wNjofeaLX8jYnYa7FagW5iyQIHQmpAwe/AO+9Bg7fXBgzfvVZjWfhLaBA4G2CwuCSlkpF7mR7t04pTn+oxOmufE5h6XI/VLNsLZyQkc6prBFDoSiOLMgZsGfdsF11J9c/lCK/PW1y4MlTZBDGG8W1F0ssUEx0euLdm4TsqoBc1cfeIC43fV6sR2nN/CSiow=="
+    user-agent: restify/1.4.1 (x64-darwin; v8/4.5.103.53; OpenSSL/1.0.2o) node/4.9.1
+    accept-version: ~1.0
+[2018-07-19T21:18:48.861Z] TRACE: mls/MantaClient/7054 on zathras.local (/Users/dap/install/node-v4.9.1-darwin-x64/lib/node_modules/manta/node_modules/restify-clients/lib/HttpClient.js:210 in onResponse): Response received
+    HTTP/1.1 200 OK
+    content-type: application/x-json-stream; type=directory
+    result-set-size: 5
+    date: Thu, 19 Jul 2018 21:18:48 GMT
+    server: Manta
+    x-request-id: 0f34c68e-2072-405a-be3a-248e8020f1ba
+    x-response-time: 254
+    x-server-name: 511ea59e-2a4a-486b-9258-ef59016d064d
+    connection: keep-alive
+    x-request-received: 1532035128176
+    x-request-processing-time: 684
+[2018-07-19T21:18:48.867Z] DEBUG: mls/MantaClient/7054 on zathras.local (/Users/dap/install/node-v4.9.1-darwin-x64/lib/node_modules/manta/lib/client.js:820 in get): get: entered (req_id=dce478bd-6bc7-451b-ac2b-22d74d7bfd37, path=/poseidon/public, id=dce478bd-6bc7-451b-ac2b-22d74d7bfd37)
+    headers: {
+      "accept": "application/x-json-stream",
+      "x-request-id": "4b4927be-fc1f-4dd8-88fe-2ae75dcbc262",
+      "date": "Thu, 19 Jul 2018 21:18:48 GMT",
+      "authorization": "Signature keyId=\"/dap/keys/56:f3:e1:56:3d:e6:f7:83:a9:ce:19:5d:62:ba:5c:1f\",algorithm=\"rsa-sha1\",headers=\"date\",signature=\"kG7IydhNO06ImfI6hFzFXXoSrWT6+2kCcDUC3swGebIr7YxeDcLEWMxGzB4z5lC29Vv7kgpLGaTc218m+63D0Y3M84LTNCvM1Va5COetXhIHkkAlBtXpJt5MUjqsRFK1xrpGKJjDc1QIBGSQIDmh4p6wNjofeaLX8jYnYa7FagW5iyQIHQmpAwe/AO+9Bg7fXBgzfvVZjWfhLaBA4G2CwuCSlkpF7mR7t04pTn+oxOmufE5h6XI/VLNsLZyQkc6prBFDoSiOLMgZsGfdsF11J9c/lCK/PW1y4MlTZBDGG8W1F0ssUEx0euLdm4TsqoBc1cfeIC43fV6sR2nN/CSiow==\""
+    }
+    --
+    query: {
+      "limit": 1024
+    }
+[2018-07-19T21:18:48.872Z] TRACE: mls/MantaClient/7054 on zathras.local (/Users/dap/install/node-v4.9.1-darwin-x64/lib/node_modules/manta/node_modules/restify-clients/lib/HttpClient.js:314 in rawRequest): request sent
+    GET /poseidon/public?limit=1024 HTTP/1.1
+    Host: us-east.manta.joyent.com:null
+    accept: application/x-json-stream
+    x-request-id: 4b4927be-fc1f-4dd8-88fe-2ae75dcbc262
+    date: Thu, 19 Jul 2018 21:18:48 GMT
+    authorization: Signature keyId="/dap/keys/56:f3:e1:56:3d:e6:f7:83:a9:ce:19:5d:62:ba:5c:1f",algorithm="rsa-sha1",headers="date",signature="kG7IydhNO06ImfI6hFzFXXoSrWT6+2kCcDUC3swGebIr7YxeDcLEWMxGzB4z5lC29Vv7kgpLGaTc218m+63D0Y3M84LTNCvM1Va5COetXhIHkkAlBtXpJt5MUjqsRFK1xrpGKJjDc1QIBGSQIDmh4p6wNjofeaLX8jYnYa7FagW5iyQIHQmpAwe/AO+9Bg7fXBgzfvVZjWfhLaBA4G2CwuCSlkpF7mR7t04pTn+oxOmufE5h6XI/VLNsLZyQkc6prBFDoSiOLMgZsGfdsF11J9c/lCK/PW1y4MlTZBDGG8W1F0ssUEx0euLdm4TsqoBc1cfeIC43fV6sR2nN/CSiow=="
+    user-agent: restify/1.4.1 (x64-darwin; v8/4.5.103.53; OpenSSL/1.0.2o) node/4.9.1
+    accept-version: ~1.0
+[2018-07-19T21:18:49.365Z] TRACE: mls/MantaClient/7054 on zathras.local (/Users/dap/install/node-v4.9.1-darwin-x64/lib/node_modules/manta/node_modules/restify-clients/lib/HttpClient.js:210 in onResponse): Response received
+    HTTP/1.1 200 OK
+    content-type: application/x-json-stream; type=directory
+    result-set-size: 5
+    date: Thu, 19 Jul 2018 21:18:49 GMT
+    server: Manta
+    x-request-id: 4b4927be-fc1f-4dd8-88fe-2ae75dcbc262
+    x-response-time: 219
+    x-server-name: 60771e58-2ad0-4c50-8b23-86b72f9307f8
+    connection: keep-alive
+    transfer-encoding: chunked
+    x-request-received: 1532035128869
+    x-request-processing-time: 496
+-rwxr-xr-x 1 poseidon            17 Dec 04  2015 agent.sh
+drwxr-xr-x 1 poseidon             0 Sep 18  2014 manatee
+drwxr-xr-x 1 poseidon             0 Jun 18  2013 medusa
+drwxr-xr-x 1 poseidon             0 Aug 01  2013 minke
+drwxr-xr-x 1 poseidon             0 Nov 07  2013 stud
+[2018-07-19T21:18:49.480Z] DEBUG: mls/MantaClient/7054 on zathras.local (/Users/dap/install/node-v4.9.1-darwin-x64/lib/node_modules/manta/lib/client.js:887 in onEnd): get: done (req_id=dce478bd-6bc7-451b-ac2b-22d74d7bfd37, path=/poseidon/public)</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>From the output, we can see that this operation made two requests.  The second
+one has <code>x-server-name: 60771e58-2ad0-4c50-8b23-86b72f9307f8</code> and <code>x-request-id:
+4b4927be-fc1f-4dd8-88fe-2ae75dcbc262</code>.  You can now use these to start
+<a href="#_investigating_a_specific_request_that_has_failed">Investigating a specific request that has failed</a>.</p>
+</div>
+<div class="paragraph">
+<p><strong>If the problem isn&#8217;t quite so easily reproducible, but you suspect it still
+affects a variety of requests,</strong> you can use
+<a href="https://github.com/joyent/manta-mlive">manta-mlive</a> to generate more requests and
+collect debug output for all of them.  For <code>mlive</code>, you&#8217;ll want to set
+<code>LOG_LEVEL</code> in the environment to generate the debug logging and you&#8217;ll likely
+want to redirect stderr to a file that you can search through later:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-text" data-lang="text">$ LOG_LEVEL=trace ./bin/mlive -S 2&gt;debug.out
+2018-07-19T21:24:01.307Z: reads okay, writes stuck (4/4 ok since start)
+2018-07-19T21:24:02.310Z: all okay (17/17 ok since 2018-07-19T21:24:01.307Z)
+^C</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>As before, you can use the <code>bunyan</code> tool to format the log:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-text" data-lang="text">$ bunyan debug.out
+...
+[2018-07-19T21:25:01.716Z] TRACE: mlive/MantaClient/9435 on zathras.local: request sent
+    HEAD /dap/stor/mlive HTTP/1.1
+    Host: us-east.manta.joyent.com:null
+    accept: application/json, */*
+    x-request-id: c317603c-82d4-4b2e-ac4b-066c9ece1864
+    date: Thu, 19 Jul 2018 21:25:01 GMT
+    authorization: Signature keyId="/dap/keys/56:f3:e1:56:3d:e6:f7:83:a9:ce:19:5d:62:ba:5c:1f",algorithm="rsa-sha1",headers="date",signature="oJZZIDh1qT8PeSSpz09bIzYT4LYK6rqXS2G5bHhh2r37SNOs0vBkFHUhfso6tSq1hmHIlkCEMXX9zGLIvYxQtHj6/KtiNgZgyWzGHms+qhc2gziXnOrMybxmWqJwipd8rAJCdDBV0B5FlCDeELWIA+1LifGDqqLdDZT4ScBUNOm9JG2+mha2U+pFbNtaXQQyyoPgopk+4ur4OHYpcaK/KY6WdC91quLIaIKV28VMtPoN/q/15lzRj6G6L7mbIMyd48ut0EbmTTR/CfYq9dquNsWDlyWgEJJVYyPZ9odAE34YQiYt/N4JXH7Crr9M6md9GtZonY+DbP8vvb5+7xr8dA=="
+    user-agent: restify/1.4.1 (x64-darwin; v8/4.5.103.53; OpenSSL/1.0.2o) node/4.9.1
+    accept-version: ~1.0
+[2018-07-19T21:25:02.548Z] TRACE: mlive/MantaClient/9435 on zathras.local: Response received
+    HTTP/1.1 200 OK
+    last-modified: Tue, 16 Dec 2014 01:17:29 GMT
+    content-type: application/x-json-stream; type=directory
+    result-set-size: 45
+    date: Thu, 19 Jul 2018 21:25:02 GMT
+    server: Manta
+    x-request-id: c317603c-82d4-4b2e-ac4b-066c9ece1864
+    x-response-time: 462
+    x-server-name: 39adec6c-bded-4a14-9d80-5a8bfc1121f9
+    connection: keep-alive
+    x-request-received: 1532035501703
+    x-request-processing-time: 844</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>You can use <code>grep</code>, <code>json</code>, or other tools to filter the output for requests of
+interest (e.g., those with a particular HTTP response code or an
+<code>x-response-time</code> larger than some value).  From the filtered results, you can
+identify an <code>x-server-name</code> and <code>x-request-id</code> and then see
+<a href="#_investigating_a_specific_request_that_has_failed">Investigating a specific request that has failed</a>.</p>
+</div>
+</div>
+<div class="sect2">
 <h3 id="_checking_recent_historical_metrics">Checking recent historical metrics</h3>
 
 </div>
@@ -1253,15 +1415,31 @@ validation).</p>
 </div>
 <div class="sect2">
 <h3 id="_locating_metadata_for_an_object">Locating metadata for an object</h3>
-
+<div class="paragraph">
+<p>See <a href="http://joyent.github.io/manta/#locating-object-data">Locating object data</a> in
+the Manta Operator&#8217;s Guide.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_locating_actual_data_for_an_object">Locating actual data for an object</h3>
+<div class="paragraph">
+<p>See <a href="http://joyent.github.io/manta/#locating-object-data">Locating object data</a> in
+the Manta Operator&#8217;s Guide.</p>
+</div>
 </div>
 <div class="sect2">
 <h3 id="_locating_a_particular_server">Locating a particular server</h3>
-
+<div class="paragraph">
+<p>See <a href="http://joyent.github.io/manta/#locating-servers">Locating servers</a> in the
+Manta Operator&#8217;s Guide.</p>
+</div>
 </div>
 <div class="sect2">
 <h3 id="_locating_a_particular_zone">Locating a particular zone</h3>
-
+<div class="paragraph">
+<p>See <a href="http://joyent.github.io/manta/#locating-manta-component-zones">Locating Manta
+component zones</a> in the Manta Operator&#8217;s Guide.</p>
+</div>
 </div>
 <div class="sect2">
 <h3 id="_locating_a_particular_database_shard">Locating a particular database shard</h3>
@@ -1736,7 +1914,7 @@ document or distributed to responders.</p>
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2018-07-12 16:33:33 PDT
+Last updated 2018-07-17 17:56:51 PDT
 </div>
 </div>
 </body>

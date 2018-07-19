@@ -149,8 +149,9 @@ which of these cases caused it.
   thousand items queued, it may be causing 503-level responses.
 ** **Yes, some shards have long Moray queues.**  See
   <<_investigating_elevated_moray_latency>>.
-** **No shard has long queues.**  See <<_finding_a_failed_request>> to find a
-   Muskie log entry with more details about the source of the 503.
+** **No shard has long queues.**  See
+  <<_finding_or_generating_a_failed_request>> to find a Muskie log entry with
+  more details about the source of the 503.
 
 // TODO can this come from 502 -- muskie timeout?  in that case, need to track
 // down load balancer log entry.  This is discussed earlier.
@@ -165,8 +166,8 @@ generally now reported as 503s.
 
 ==== Response code 500
 
-This generally indicates a server-side bug.  See <<_finding_a_failed_request>>
-to learn why the request failed.
+This generally indicates a server-side bug.  See
+<<_finding_or_generating_a_failed_request>> to learn why the request failed.
 
 
 ==== Response code 499
@@ -184,10 +185,10 @@ the server may have no place to send it.
 * a network issue disrupted the connection between client and server
 
 **If you have a specific 499 request's Muskie log entry already** (as from a
-<<_finding_a_failed_request, Muskie log>>), was the latency fairly high?  (If
-you know the client's timeout, was the request latency longer than this
-timeout?)  Check the "latency" field in the Muskie log entry.  Also compare the
-`Date` header in the request with the timestamp of the log entry.  If these
+<<_finding_or_generating_a_failed_request, Muskie log>>), was the latency fairly
+high?  (If you know the client's timeout, was the request latency longer than
+this timeout?)  Check the "latency" field in the Muskie log entry.  Also compare
+the `Date` header in the request with the timestamp of the log entry.  If these
 don't match up, the request may have been queued somewhere before being
 processed by Muskie.
 
@@ -209,11 +210,6 @@ correct.
 // TODO find bug where too many ssh keys resulted in 401/403?
 
 
-==== Finding a failed request
-
-// TODO this section should talk about searching for them in logs OR reproducing
-// them as needed.
-
 === Investigating an increase in latency
 
 === Investigating a specific request that has failed
@@ -231,6 +227,9 @@ Ideally, you'll want to have:
 In many cases, you can get by with only some of this information.  The more
 information you have, the easier (and faster) it will be to find more
 information.
+
+You might also try <<_finding_or_generating_a_failed_request, generating your
+own request>> to investigate.
 
 If you find the log entry, see <<_understanding_a_muskie_log_entry>> for
 details.  If you find none, see <<_if_there_is_no_muskie_log_entry>>.
