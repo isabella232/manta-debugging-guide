@@ -124,3 +124,7 @@ component names
 shards
 instances / zones
 services (SMF vs. SAPI)
+bounce (as in: a box, a service)
+box (a server)
+out of CPU
+saturated

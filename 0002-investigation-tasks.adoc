@@ -2,9 +2,92 @@
 
 === Investigating a slow tier of Node processes
 
-// TODO talk about which tiers this applies to, confirming latency from
-// dashboards, finding individual slow instances, checking CPU usage, and
-// checking for GC problems
+The following services within the Manta data path are Node.js-based:
+
+- Webapi (muskie)
+- Electric-Moray
+- Moray
+- Authcache (mahi)
+- Nameservice (not covered in this section)
+
+NOTE: This section assumes that you're looking at a specific tier of services
+(i.e., one of the ones listed above).  **If you're looking at Moray
+specifically, as you follow this section, consider only the Moray instances for
+the particular shard you're looking at.**
+
+First, **have you already confirmed that this tier is reporting high latency?**
+If not, check metric dashboards first to see whether latency is high.  See
+<<_investigating_an_increase_in_latency>>.
+
+Next, **have you also confirmed that the reason for the latency is not due to a
+dependent service?**  For example, if you're here because of Electric-Moray,
+have you confirmed that Moray isn't also seeing high latency?  If you haven't,
+see <<_investigating_an_increase_in_latency>> for how to locate which tier is
+the origin of overall latency.
+
+At this point, you've confirmed that this tier appears to be the source of a
+latency increase.  Now, use the latency metric dashboards to see **is the
+increase in latency affecting nearly all instances?**
+
+* **Yes, nearly all instances are reporting high latency.**  This might reflect
+  insufficient capacity.  Individual Node processes are usually close to
+  capacity when they exceed about 80-85% of CPU utilization.  Each component
+  typically has multiple processes deployed in each zone, which means the
+  saturation point (80-85% per process) is different for each type of zone:
++
+--
+[cols="<,>,>,>"]
+|===
+<| Service      <| Processes per zone <| Saturation point  <| Equivalent CPUs
+
+| webapi         | 16                  | 13000% (zone-wide) | 13 CPUs
+| electric-moray |  4                  | 325% (zone-wide)   | 3.25 CPUs
+| moray          |  4                  | 325% (zone-wide)   | 3.25 CPUs
+| authcache      |  1                  |  80% (zone-wide)   | 0.8 CPUs
+|===
+
+Given the above guides, use CPU utilization graphs to determine: **are most
+instances in this service close to CPU saturation?**  (The
+<<_deployment_specific_details>> section recommends having both a line graph
+showing the minimum zone-wide CPU usage for each service and a heat map of
+zone-wide CPU utilization.  If the line graph is above these guidelines, the
+service definitely looks saturated.  The heat map allows you to identify cases
+where some instances might have more headroom available, but most of them are
+still too busy.)
+--
+** **Yes, most instances are nearing saturation.**  Deploy more instances of the
+    service in question.  See <<_scaling_up_a_component>>.  **Additionally, if
+    the workload has not changed substantially, you may want to
+    <<_check_for_a_garbage_collection_issue_or_memory_leak, check for a memory
+    leak>> that may have affected many processes.**  If it has, then deploying
+    more instances will likely only help for a little while -- until those
+    suffer the same leak.
+** **No, many instances appear to have plenty of headroom.**  This is very
+   unusual, so it's worth double-checking that latency is elevated across the
+   board, but latency at dependent services is not high, and CPU utilization is
+   not high.  If this is really the case, pick any specific process showing high
+   latency and see <<_investigating_a_slow_process>>.  Other avenues to
+   consider: **is the dependent service close to CPU saturation?** If so,
+   clients of the dependent service may see much higher latency than the service
+   reports because of queueing.  **Is there evidence of elevated packet loss?**
+   This can also increase client-side latency without manifesting as latency
+   reported by the dependent service.
+* **No, only some instances are reporting high latency.**  In this case, this
+  service does not appear generally overloaded, although it's possible that some
+  instances are.  Next question: **can you tell from the per-request metrics for
+  this tier whether the workload is evenly distributed across instances?**
+** **Yes, the workload is evenly distributed across instances.**  In this case,
+  it appears that processes are generally doing comparable work, but some are
+  doing it much slower.  The next step is to **use the dashboard to identify a
+  zone with particularly high latency and dig deeper into a specific slow
+  process**.  See <<_investigating_a_slow_process>>.
+** **No, the workload is unevenly distributed.**  See
+  <<_investigating_service_discovery>>.  (Remember, if you're looking at Moray,
+  this section assumes you're looking only at instances for a particular shard.
+  As described under <<_investigating_an_increase_in_latency>>, if you see
+  latency at Moray, you should first isolate the shard and investigate latency
+  in each shard separately.)
+
 
 === Investigating PostgreSQL latency
 
@@ -248,6 +331,11 @@ component zones] in the Manta Operator's Guide.
 
 // TODO what's in DNS
 
+=== Investigating a slow process
+
+// TODO this should probably just be: check if it's on-CPU and branch to one of
+// the following steps
+
 === Investigating why a process is on-CPU
 
 // TODO profiling a busy process
@@ -267,3 +355,8 @@ component zones] in the Manta Operator's Guide.
 //        Yes: rollback
 //        No: debug memory leak
 
+
+=== Scaling up a component
+
+// TODO: caveats for webapi (will restart load balancers), moray (will want to
+// tune *down* database connections, or be aware that you'll be using more)

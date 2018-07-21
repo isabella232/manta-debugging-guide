@@ -490,9 +490,11 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_finding_what_shard_a_particular_zone_is_part_of">Finding what shard a particular zone is part of</a></li>
 <li><a href="#_save_debugging_state_and_restart_a_process">Save debugging state and restart a process</a></li>
 <li><a href="#_investigating_service_discovery">Investigating service discovery</a></li>
+<li><a href="#_investigating_a_slow_process">Investigating a slow process</a></li>
 <li><a href="#_investigating_why_a_process_is_on_cpu">Investigating why a process is on-CPU</a></li>
 <li><a href="#_investigating_why_a_process_is_off_cpu">Investigating why a process is off-CPU</a></li>
 <li><a href="#_check_for_a_garbage_collection_issue_or_memory_leak">Check for a garbage collection issue (or memory leak)</a></li>
+<li><a href="#_scaling_up_a_component">Scaling up a component</a></li>
 </ul>
 </li>
 <li><a href="#_quick_references">Quick references</a>
@@ -1371,7 +1373,177 @@ client to give up before receiving a response.</p>
 <div class="sectionbody">
 <div class="sect2">
 <h3 id="_investigating_a_slow_tier_of_node_processes">Investigating a slow tier of Node processes</h3>
-
+<div class="paragraph">
+<p>The following services within the Manta data path are Node.js-based:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Webapi (muskie)</p>
+</li>
+<li>
+<p>Electric-Moray</p>
+</li>
+<li>
+<p>Moray</p>
+</li>
+<li>
+<p>Authcache (mahi)</p>
+</li>
+<li>
+<p>Nameservice (not covered in this section)</p>
+</li>
+</ul>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Note</div>
+</td>
+<td class="content">
+This section assumes that you&#8217;re looking at a specific tier of services
+(i.e., one of the ones listed above).  <strong>If you&#8217;re looking at Moray
+specifically, as you follow this section, consider only the Moray instances for
+the particular shard you&#8217;re looking at.</strong>
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>First, <strong>have you already confirmed that this tier is reporting high latency?</strong>
+If not, check metric dashboards first to see whether latency is high.  See
+<a href="#_investigating_an_increase_in_latency">Investigating an increase in latency</a>.</p>
+</div>
+<div class="paragraph">
+<p>Next, <strong>have you also confirmed that the reason for the latency is not due to a
+dependent service?</strong>  For example, if you&#8217;re here because of Electric-Moray,
+have you confirmed that Moray isn&#8217;t also seeing high latency?  If you haven&#8217;t,
+see <a href="#_investigating_an_increase_in_latency">Investigating an increase in latency</a> for how to locate which tier is
+the origin of overall latency.</p>
+</div>
+<div class="paragraph">
+<p>At this point, you&#8217;ve confirmed that this tier appears to be the source of a
+latency increase.  Now, use the latency metric dashboards to see <strong>is the
+increase in latency affecting nearly all instances?</strong></p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Yes, nearly all instances are reporting high latency.</strong>  This might reflect
+insufficient capacity.  Individual Node processes are usually close to
+capacity when they exceed about 80-85% of CPU utilization.  Each component
+typically has multiple processes deployed in each zone, which means the
+saturation point (80-85% per process) is different for each type of zone:</p>
+<div class="openblock">
+<div class="content">
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 25%;">
+<col style="width: 25%;">
+<col style="width: 25%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Service</th>
+<th class="tableblock halign-left valign-top">Processes per zone</th>
+<th class="tableblock halign-left valign-top">Saturation point</th>
+<th class="tableblock halign-left valign-top">Equivalent CPUs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">webapi</p></td>
+<td class="tableblock halign-right valign-top"><p class="tableblock">16</p></td>
+<td class="tableblock halign-right valign-top"><p class="tableblock">13000% (zone-wide)</p></td>
+<td class="tableblock halign-right valign-top"><p class="tableblock">13 CPUs</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">electric-moray</p></td>
+<td class="tableblock halign-right valign-top"><p class="tableblock">4</p></td>
+<td class="tableblock halign-right valign-top"><p class="tableblock">325% (zone-wide)</p></td>
+<td class="tableblock halign-right valign-top"><p class="tableblock">3.25 CPUs</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">moray</p></td>
+<td class="tableblock halign-right valign-top"><p class="tableblock">4</p></td>
+<td class="tableblock halign-right valign-top"><p class="tableblock">325% (zone-wide)</p></td>
+<td class="tableblock halign-right valign-top"><p class="tableblock">3.25 CPUs</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">authcache</p></td>
+<td class="tableblock halign-right valign-top"><p class="tableblock">1</p></td>
+<td class="tableblock halign-right valign-top"><p class="tableblock">80% (zone-wide)</p></td>
+<td class="tableblock halign-right valign-top"><p class="tableblock">0.8 CPUs</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>Given the above guides, use CPU utilization graphs to determine: <strong>are most
+instances in this service close to CPU saturation?</strong>  (The
+<a href="#_deployment_specific_details">Deployment-specific details</a> section recommends having both a line graph
+showing the minimum zone-wide CPU usage for each service and a heat map of
+zone-wide CPU utilization.  If the line graph is above these guidelines, the
+service definitely looks saturated.  The heat map allows you to identify cases
+where some instances might have more headroom available, but most of them are
+still too busy.)</p>
+</div>
+</div>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Yes, most instances are nearing saturation.</strong>  Deploy more instances of the
+service in question.  See <a href="#_scaling_up_a_component">Scaling up a component</a>.  <strong>Additionally, if
+the workload has not changed substantially, you may want to
+<a href="#_check_for_a_garbage_collection_issue_or_memory_leak">check for a memory
+leak</a> that may have affected many processes.</strong>  If it has, then deploying
+more instances will likely only help for a little while&#8201;&#8212;&#8201;until those
+suffer the same leak.</p>
+</li>
+<li>
+<p><strong>No, many instances appear to have plenty of headroom.</strong>  This is very
+unusual, so it&#8217;s worth double-checking that latency is elevated across the
+board, but latency at dependent services is not high, and CPU utilization is
+not high.  If this is really the case, pick any specific process showing high
+latency and see <a href="#_investigating_a_slow_process">Investigating a slow process</a>.  Other avenues to
+consider: <strong>is the dependent service close to CPU saturation?</strong> If so,
+clients of the dependent service may see much higher latency than the service
+reports because of queueing.  <strong>Is there evidence of elevated packet loss?</strong>
+This can also increase client-side latency without manifesting as latency
+reported by the dependent service.</p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p><strong>No, only some instances are reporting high latency.</strong>  In this case, this
+service does not appear generally overloaded, although it&#8217;s possible that some
+instances are.  Next question: <strong>can you tell from the per-request metrics for
+this tier whether the workload is evenly distributed across instances?</strong></p>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Yes, the workload is evenly distributed across instances.</strong>  In this case,
+it appears that processes are generally doing comparable work, but some are
+doing it much slower.  The next step is to <strong>use the dashboard to identify a
+zone with particularly high latency and dig deeper into a specific slow
+process</strong>.  See <a href="#_investigating_a_slow_process">Investigating a slow process</a>.</p>
+</li>
+<li>
+<p><strong>No, the workload is unevenly distributed.</strong>  See
+<a href="#_investigating_service_discovery">Investigating service discovery</a>.  (Remember, if you&#8217;re looking at Moray,
+this section assumes you&#8217;re looking only at instances for a particular shard.
+As described under <a href="#_investigating_an_increase_in_latency">Investigating an increase in latency</a>, if you see
+latency at Moray, you should first isolate the shard and investigate latency
+in each shard separately.)</p>
+</li>
+</ul>
+</div>
+</li>
+</ul>
+</div>
 </div>
 <div class="sect2">
 <h3 id="_investigating_postgresql_latency">Investigating PostgreSQL latency</h3>
@@ -1656,6 +1828,10 @@ component zones</a> in the Manta Operator&#8217;s Guide.</p>
 
 </div>
 <div class="sect2">
+<h3 id="_investigating_a_slow_process">Investigating a slow process</h3>
+
+</div>
+<div class="sect2">
 <h3 id="_investigating_why_a_process_is_on_cpu">Investigating why a process is on-CPU</h3>
 
 </div>
@@ -1665,6 +1841,10 @@ component zones</a> in the Manta Operator&#8217;s Guide.</p>
 </div>
 <div class="sect2">
 <h3 id="_check_for_a_garbage_collection_issue_or_memory_leak">Check for a garbage collection issue (or memory leak)</h3>
+
+</div>
+<div class="sect2">
+<h3 id="_scaling_up_a_component">Scaling up a component</h3>
 
 </div>
 </div>
@@ -2000,7 +2180,11 @@ tail latency
 component names
 shards
 instances / zones
-services (SMF vs. SAPI)</p>
+services (SMF vs. SAPI)
+bounce (as in: a box, a service)
+box (a server)
+out of CPU
+saturated</p>
 </div>
 </div>
 </div>
@@ -2083,6 +2267,21 @@ and table</p>
 </ul>
 </div>
 </li>
+<li>
+<p>a CPU utilization dashboard that shows</p>
+<div class="ulist">
+<ul>
+<li>
+<p>line graphs for each service showing the min and max zone-wide CPU
+utilization for that service</p>
+</li>
+<li>
+<p>a heat map for each service showing the zone-wide CPU utilization for each
+zone in that service</p>
+</li>
+</ul>
+</div>
+</li>
 </ul>
 </div>
 <div class="paragraph">
@@ -2116,7 +2315,7 @@ document or distributed to responders.</p>
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2018-07-17 17:56:51 PDT
+Last updated 2018-07-12 16:33:33 PDT
 </div>
 </div>
 </body>

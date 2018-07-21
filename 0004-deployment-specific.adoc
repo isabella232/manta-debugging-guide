@@ -26,6 +26,11 @@ We recommend creating a few different dashboards:
 ** transactions-til-wraparound-autovacuum, with ability to break out by shard
    and table
 ** live and dead tuples, with ability to break out by shard and table
+* a CPU utilization dashboard that shows
+** line graphs for each service showing the min and max zone-wide CPU
+   utilization for that service
+** a heat map for each service showing the zone-wide CPU utilization for each
+   zone in that service
 
 The rest of this guide makes reference to "checking recent historical metrics".
 This refers to using one of these dashboards to observe these metrics, typically
