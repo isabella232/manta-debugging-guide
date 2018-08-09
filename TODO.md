@@ -1,3 +1,5 @@
+Document the graphs / metrics on the most important dashboards.
+
 Background context:
 - links to specific sections of the Manta Operator's Guide
 - artedi, metrics, starfish

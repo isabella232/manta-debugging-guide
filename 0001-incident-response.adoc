@@ -46,6 +46,9 @@ Choose a place to start:
 * <<_investigating_an_increase_in_latency>>
 * <<_investigating_a_specific_request_that_has_failed>>
 
+**Many of these sections refer to checking recent historical metrics.  See
+<<_deployment_specific_details>> for more information.**
+
 === Investigating a decrease in overall throughput
 
 Start here if you have reason to believe that inbound or outbound throughput to
