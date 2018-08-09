@@ -51,6 +51,14 @@ Choose a place to start:
 Start here if you have reason to believe that inbound or outbound throughput to
 Manta has recently been reduced.
 
+First, **can you confirm the decrease in throughput from Manta's own metrics?**
+If not, the problem may be external to Manta.  Since problems often unfold over
+several minutes, you may have to look back over several hours to get a sense of
+recent throughput.
+
+.A sudden drop in inbound throughput after several hours of steady performance.
+image::images/metrics-webapi-bytes-falling-1.png[,align="center"]
+
 
 * **Has the error rate increased?**  Check recent historical metrics for an
   increase in 400-level or 500-level errors.

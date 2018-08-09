@@ -605,6 +605,18 @@ your company or organization should separately document.</p>
 <p>Start here if you have reason to believe that inbound or outbound throughput to
 Manta has recently been reduced.</p>
 </div>
+<div class="paragraph">
+<p>First, <strong>can you confirm the decrease in throughput from Manta&#8217;s own metrics?</strong>
+If not, the problem may be external to Manta.  Since problems often unfold over
+several minutes, you may have to look back over several hours to get a sense of
+recent throughput.</p>
+</div>
+<div class="imageblock" style="text-align: center">
+<div class="content">
+<img src="images/metrics-webapi-bytes-falling-1.png" alt="metrics webapi bytes falling 1">
+</div>
+<div class="title">Figure 1. A sudden drop in inbound throughput after several hours of steady performance.</div>
+</div>
 <div class="ulist">
 <ul>
 <li>
@@ -624,7 +636,7 @@ it may be useful to investigate latency instead.)</p>
 <div class="content">
 <img src="images/metrics-webapi-errors-spike-1.png" alt="Spike in 503 errors">
 </div>
-<div class="title">Figure 1. A transient spike in 503 errors.  (Note the absolute number is extremely low here.  To see this against a larger number of successful requests, you may need to click on "503" in the legend to show only the 503s.)</div>
+<div class="title">Figure 2. A transient spike in 503 errors.  (Note the absolute number is extremely low here.  To see this against a larger number of successful requests, you may need to click on "503" in the legend to show only the 503s.)</div>
 </div>
 </div>
 </div>
@@ -644,7 +656,7 @@ p95 latency.</p>
 <div class="content">
 <img src="images/metrics-webapi-latency-increasing-1.png" alt="metrics webapi latency increasing 1">
 </div>
-<div class="title">Figure 2. An increase in webapi tail latency.</div>
+<div class="title">Figure 3. An increase in webapi tail latency.</div>
 </div>
 </div>
 </div>
@@ -748,13 +760,13 @@ tail latency might be cause for further investigation.</p>
 <div class="content">
 <img src="images/metrics-webapi-latency-increasing-1.png" alt="metrics webapi latency increasing 1">
 </div>
-<div class="title">Figure 3. A steady increase in webapi tail latency.</div>
+<div class="title">Figure 4. A steady increase in webapi tail latency.</div>
 </div>
 <div class="imageblock" style="text-align: center">
 <div class="content">
 <img src="images/metrics-webapi-latency-spike-1.png" alt="metrics webapi latency spike 1">
 </div>
-<div class="title">Figure 4. A transient spike in webapi tail latency.</div>
+<div class="title">Figure 5. A transient spike in webapi tail latency.</div>
 </div>
 <div class="paragraph">
 <p><strong>Has latency at Muskie increased?</strong></p>
