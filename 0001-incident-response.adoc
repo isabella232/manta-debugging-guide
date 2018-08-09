@@ -176,6 +176,9 @@ image::images/metrics-webapi-latency-spike-1.png[,align="center"]
    whole tier may be overloaded.  See
    <<_investigating_a_slow_tier_of_node_processes>>.
 
+.A _decrease_ in webapi latency that's well correlated with a decrease in maximum Moray tail latency across all shards.
+image::images/metrics-latency-correlation-1.png[,align="center"]
+
 If you found above that latency at Moray has increased, take a look at the
 Moray latency metrics broken out by shard name (or zonename, and then
 <<_finding_what_shard_e_particular_zone_is_part_of, map the zonenames to shard
