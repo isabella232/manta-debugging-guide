@@ -497,6 +497,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_scaling_up_a_component">Scaling up a component</a></li>
 </ul>
 </li>
+<li><a href="#_characterizing_a_problem">Characterizing a problem</a></li>
 <li><a href="#_quick_references">Quick references</a>
 <ul class="sectlevel2">
 <li><a href="#_manta_http_quick_reference">Manta HTTP Quick Reference</a>
@@ -1846,6 +1847,157 @@ component zones</a> in the Manta Operator&#8217;s Guide.</p>
 <div class="sect2">
 <h3 id="_scaling_up_a_component">Scaling up a component</h3>
 
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_characterizing_a_problem">Characterizing a problem</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>It&#8217;s very valuable to <em>briefly</em> and <em>precisely</em> characterize a problem:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>when asking for help from others, so they can quickly understand the relevant
+context</p>
+</li>
+<li>
+<p>for summarizing status to stakeholders</p>
+</li>
+<li>
+<p>for handing off work to others (e.g., when escalating to another team or
+changing shifts)</p>
+</li>
+<li>
+<p>as a form of
+<a href="https://en.wikipedia.org/wiki/Rubber_duck_debugging">rubber-ducking</a>&#8201;&#8212;&#8201;it
+often helps spark insight</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>When characterizing a problem, include the basic facts:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Exactly <strong>what</strong> you&#8217;ve observed: 500 errors? 503 errors? Elevated latency?
+It&#8217;s useful to be as specific as you can (e.g., "a 5% increase in 500
+errors"), but it&#8217;s better to be vague (e.g., "an increase in latency") than to
+say something false (e.g., "an increase in average latency" when only tail
+latency is affected).</p>
+</li>
+<li>
+<p>Something about <strong>when</strong> the observations started.  Again, it&#8217;s useful to be
+as specific as possible (e.g., "starting at 2018-08-09T16:47Z"), but it&#8217;s
+better to be vague (e.g., "seems to have increased since yesterday") than
+incorrect (e.g., "it&#8217;s higher than yesterday" when you&#8217;re really just
+eyeballing an average value from a graph).</p>
+</li>
+<li>
+<p>What other observations you&#8217;ve made (or anything else you&#8217;ve tried, and the
+results)</p>
+</li>
+<li>
+<p>Any specific questions you have.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>It&#8217;s useful to mention what conclusions you&#8217;ve drawn, but try to distinguish
+facts (e.g., "moray queue lengths are high") from inferences ("moray is
+overloaded").</p>
+</div>
+<div class="paragraph">
+<p>Here&#8217;s a good characterization:</p>
+</div>
+<div class="quoteblock">
+<blockquote>
+Webapi is reporting an increase in 500 and 503 errors since 2018-08-09T16:58Z.
+These do not seem correlated with increased latency, nor with any errors from
+the metadata tier.  How do we check for errors from the storage tier?
+</blockquote>
+</div>
+<div class="paragraph">
+<p>It&#8217;s often very helpful to include screenshots
+(<a href="https://support.apple.com/en-us/HT201361">MacOS instructions</a>).  Here&#8217;s an
+example:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="images/metrics-webapi-elevated-1.png" alt="Elevated latency at Webapi">
+</div>
+</div>
+<div class="paragraph">
+<p>Here&#8217;s one way to characterize this:</p>
+</div>
+<div class="quoteblock">
+<blockquote>
+We saw elevated latency since early on 8/1 (UTC)
+</blockquote>
+</div>
+<div class="paragraph">
+<p>Better:</p>
+</div>
+<div class="quoteblock">
+<blockquote>
+We saw a modest increase in tail latency (both p90 and p99) starting early on
+8/1 and continuing through 8/4 (UTC).  This was followed by a sharp, significant
+increase on 8/6.
+</blockquote>
+</div>
+<div class="paragraph">
+<p>More detailed (may be better, depending on the situation):</p>
+</div>
+<div class="quoteblock">
+<blockquote>
+We saw a modest increase in tail latency (both p90 and p99) starting early on
+8/1 and continuing through 8/4 (UTC).  This was followed by a sharp, significant
+increase on 8/6.  During both increases, latency was much less stable than
+before.  p90 peaked at about 50% higher than normal, while p95 spiked about 3x
+what it was before.
+</blockquote>
+</div>
+<div class="paragraph">
+<p>Of course, it&#8217;s easy to give too much detail, too.  Think about what&#8217;s likely
+to be relevant for your audience.</p>
+</div>
+<div class="paragraph">
+<p><strong>Grafana&#8217;s features can help you make quantitative statements.</strong>  For example,
+take this graph:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="images/metrics-webapi-bytes-1.png" alt="Dips in throughput at Webapi">
+</div>
+</div>
+<div class="paragraph">
+<p>About the dip on 8/6, you could say:</p>
+</div>
+<div class="quoteblock">
+<blockquote>
+We saw a dip in throughput on 8/6.
+</blockquote>
+</div>
+<div class="paragraph">
+<p>Better would be:</p>
+</div>
+<div class="quoteblock">
+<blockquote>
+There was a brief dip in inbound throughput on 8/6 around 12:36Z.
+</blockquote>
+</div>
+<div class="paragraph">
+<p>Since Grafana can show you both the average for the whole period, plus the value
+at a point, you can make more specific statements:</p>
+</div>
+<div class="quoteblock">
+<blockquote>
+There was a brief dip in inbound throughput on 8/6 around 12:36Z.  It dropped
+about 38% relative to the average for 14 days around it (3.3 GBps during the
+dip, compared to a recent average of about 5.3 GBps).
+</blockquote>
 </div>
 </div>
 </div>

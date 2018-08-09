@@ -20,6 +20,7 @@ ASCIIDOC_OPTIONS       = -b html5
 #
 OUT_DIR                = docs
 OUT_GUIDE              = $(OUT_DIR)/$(GUIDE_HTML)
+CLEAN_FILES 	      += $(OUT_GUIDE)
 
 #
 # Macros for command used in recipes
@@ -52,4 +53,4 @@ $(OUT_DIR):
 #
 .PHONY: clean
 clean:
-	rm -rf $(OUT_DIR)
+	rm -rf $(CLEAN_FILES)

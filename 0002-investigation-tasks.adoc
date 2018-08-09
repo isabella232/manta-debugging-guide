@@ -360,3 +360,97 @@ component zones] in the Manta Operator's Guide.
 
 // TODO: caveats for webapi (will restart load balancers), moray (will want to
 // tune *down* database connections, or be aware that you'll be using more)
+
+
+== Characterizing a problem
+
+It's very valuable to _briefly_ and _precisely_ characterize a problem:
+
+- when asking for help from others, so they can quickly understand the relevant
+  context
+- for summarizing status to stakeholders
+- for handing off work to others (e.g., when escalating to another team or
+  changing shifts)
+- as a form of
+  https://en.wikipedia.org/wiki/Rubber_duck_debugging[rubber-ducking] -- it
+  often helps spark insight
+
+When characterizing a problem, include the basic facts:
+
+- Exactly **what** you've observed: 500 errors? 503 errors? Elevated latency?
+  It's useful to be as specific as you can (e.g., "a 5% increase in 500
+  errors"), but it's better to be vague (e.g., "an increase in latency") than to
+  say something false (e.g., "an increase in average latency" when only tail
+  latency is affected).
+- Something about **when** the observations started.  Again, it's useful to be
+  as specific as possible (e.g., "starting at 2018-08-09T16:47Z"), but it's
+  better to be vague (e.g., "seems to have increased since yesterday") than
+  incorrect (e.g., "it's higher than yesterday" when you're really just
+  eyeballing an average value from a graph).
+- What other observations you've made (or anything else you've tried, and the
+  results)
+- Any specific questions you have.
+
+It's useful to mention what conclusions you've drawn, but try to distinguish
+facts (e.g., "moray queue lengths are high") from inferences ("moray is
+overloaded").
+
+Here's a good characterization:
+
+[quote]
+Webapi is reporting an increase in 500 and 503 errors since 2018-08-09T16:58Z.
+These do not seem correlated with increased latency, nor with any errors from
+the metadata tier.  How do we check for errors from the storage tier?
+
+It's often very helpful to include screenshots
+(https://support.apple.com/en-us/HT201361[MacOS instructions]).  Here's an
+example:
+
+image::images/metrics-webapi-elevated-1.png[Elevated latency at Webapi]
+
+Here's one way to characterize this:
+
+[quote]
+We saw elevated latency since early on 8/1 (UTC)
+
+Better:
+
+[quote]
+We saw a modest increase in tail latency (both p90 and p99) starting early on
+8/1 and continuing through 8/4 (UTC).  This was followed by a sharp, significant
+increase on 8/6.
+
+More detailed (may be better, depending on the situation):
+
+[quote]
+We saw a modest increase in tail latency (both p90 and p99) starting early on
+8/1 and continuing through 8/4 (UTC).  This was followed by a sharp, significant
+increase on 8/6.  During both increases, latency was much less stable than
+before.  p90 peaked at about 50% higher than normal, while p95 spiked about 3x
+what it was before.
+
+Of course, it's easy to give too much detail, too.  Think about what's likely
+to be relevant for your audience.
+
+**Grafana's features can help you make quantitative statements.**  For example,
+take this graph:
+
+image::images/metrics-webapi-bytes-1.png[Dips in throughput at Webapi]
+
+About the dip on 8/6, you could say:
+
+[quote]
+We saw a dip in throughput on 8/6.
+
+Better would be:
+
+[quote]
+There was a brief dip in inbound throughput on 8/6 around 12:36Z.
+
+Since Grafana can show you both the average for the whole period, plus the value
+at a point, you can make more specific statements:
+
+[quote]
+There was a brief dip in inbound throughput on 8/6 around 12:36Z.  It dropped
+about 38% relative to the average for 14 days around it (3.3 GBps during the
+dip, compared to a recent average of about 5.3 GBps).
