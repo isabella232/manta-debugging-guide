@@ -389,13 +389,13 @@ When characterizing a problem, include the basic facts:
   eyeballing an average value from a graph).
 - What other observations you've made (or anything else you've tried, and the
   results)
-- Any specific questions you have.
+- (if you're asking for help) Any specific questions you have.
 
 It's useful to mention what conclusions you've drawn, but try to distinguish
 facts (e.g., "moray queue lengths are high") from inferences ("moray is
 overloaded").
 
-Here's a good characterization:
+Here's a good status summary:
 
 [quote]
 Webapi is reporting an increase in 500 and 503 errors since 2018-08-09T16:58Z.

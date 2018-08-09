@@ -51,6 +51,7 @@ Choose a place to start:
 Start here if you have reason to believe that inbound or outbound throughput to
 Manta has recently been reduced.
 
+
 * **Has the error rate increased?**  Check recent historical metrics for an
   increase in 400-level or 500-level errors.
 ** **Yes, there's an increase in the overall error rate.**  See
@@ -58,11 +59,21 @@ Manta has recently been reduced.
    that were previously accounting for throughput are now failing.  (If the
    error rate is not high enough to account for the change in throughput, then
    it may be useful to investigate latency instead.)
++
+--
+.A transient spike in 503 errors.  (Note the absolute number is extremely low here.  To see this against a larger number of successful requests, you may need to click on "503" in the legend to show only the 503s.)
+image::images/metrics-webapi-errors-spike-1.png[Spike in 503 errors,align="center"]
+--
 ** **No, the error rate is unchanged.**  **Has webapi latency increased?**  Check
    recent historical metrics for an increase in average latency, p90 latency, or
    p95 latency.
 *** **Yes, webapi latency has increased.**  See
     <<_investigating_an_increase_in_latency>>.
++
+--
+.An increase in webapi tail latency.
+image::images/metrics-webapi-latency-increasing-1.png[,align="center"]
+--
 *** **No, webapi latency is unchanged or lower.**  If there are no errors and no
     increased latency, then Manta appears healthy.  Check upstream network
     connections, client metrics, and client behavior.  (e.g., has the client
@@ -123,6 +134,12 @@ whether you're talking about average latency or tail latency.  However, the
 questions below are intentionally ambiguous, as increases in either average or
 tail latency might be cause for further investigation.
 ====
+
+.A steady increase in webapi tail latency.
+image::images/metrics-webapi-latency-increasing-1.png[,align="center"]
+
+.A transient spike in webapi tail latency.
+image::images/metrics-webapi-latency-spike-1.png[,align="center"]
 
 **Has latency at Muskie increased?**
 

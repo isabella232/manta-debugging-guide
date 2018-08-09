@@ -618,6 +618,16 @@ increase in 400-level or 500-level errors.</p>
 that were previously accounting for throughput are now failing.  (If the
 error rate is not high enough to account for the change in throughput, then
 it may be useful to investigate latency instead.)</p>
+<div class="openblock">
+<div class="content">
+<div class="imageblock" style="text-align: center">
+<div class="content">
+<img src="images/metrics-webapi-errors-spike-1.png" alt="Spike in 503 errors">
+</div>
+<div class="title">Figure 1. A transient spike in 503 errors.  (Note the absolute number is extremely low here.  To see this against a larger number of successful requests, you may need to click on "503" in the legend to show only the 503s.)</div>
+</div>
+</div>
+</div>
 </li>
 <li>
 <p><strong>No, the error rate is unchanged.</strong>  <strong>Has webapi latency increased?</strong>  Check
@@ -628,6 +638,16 @@ p95 latency.</p>
 <li>
 <p><strong>Yes, webapi latency has increased.</strong>  See
 <a href="#_investigating_an_increase_in_latency">Investigating an increase in latency</a>.</p>
+<div class="openblock">
+<div class="content">
+<div class="imageblock" style="text-align: center">
+<div class="content">
+<img src="images/metrics-webapi-latency-increasing-1.png" alt="metrics webapi latency increasing 1">
+</div>
+<div class="title">Figure 2. An increase in webapi tail latency.</div>
+</div>
+</div>
+</div>
 </li>
 <li>
 <p><strong>No, webapi latency is unchanged or lower.</strong>  If there are no errors and no
@@ -723,6 +743,18 @@ tail latency might be cause for further investigation.</p>
 </td>
 </tr>
 </table>
+</div>
+<div class="imageblock" style="text-align: center">
+<div class="content">
+<img src="images/metrics-webapi-latency-increasing-1.png" alt="metrics webapi latency increasing 1">
+</div>
+<div class="title">Figure 3. A steady increase in webapi tail latency.</div>
+</div>
+<div class="imageblock" style="text-align: center">
+<div class="content">
+<img src="images/metrics-webapi-latency-spike-1.png" alt="metrics webapi latency spike 1">
+</div>
+<div class="title">Figure 4. A transient spike in webapi tail latency.</div>
 </div>
 <div class="paragraph">
 <p><strong>Has latency at Muskie increased?</strong></p>
@@ -1897,7 +1929,7 @@ eyeballing an average value from a graph).</p>
 results)</p>
 </li>
 <li>
-<p>Any specific questions you have.</p>
+<p>(if you&#8217;re asking for help) Any specific questions you have.</p>
 </li>
 </ul>
 </div>
@@ -1907,7 +1939,7 @@ facts (e.g., "moray queue lengths are high") from inferences ("moray is
 overloaded").</p>
 </div>
 <div class="paragraph">
-<p>Here&#8217;s a good characterization:</p>
+<p>Here&#8217;s a good status summary:</p>
 </div>
 <div class="quoteblock">
 <blockquote>
