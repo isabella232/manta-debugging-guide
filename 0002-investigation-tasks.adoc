@@ -362,7 +362,7 @@ component zones] in the Manta Operator's Guide.
 // tune *down* database connections, or be aware that you'll be using more)
 
 
-== Characterizing a problem
+=== Characterizing a problem
 
 It's very valuable to _briefly_ and _precisely_ characterize a problem:
 
