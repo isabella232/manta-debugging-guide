@@ -1,0 +1,144 @@
+== Metrics
+
+Real-time metrics provided by Manta form the basis of situational awareness,
+particularly during incident response.  Metrics are available for most data path
+components.  Understanding these metrics requires a basic understanding of these
+components and how they work together.  For more on these components, see
+http://joyent.github.io/manta/#components-of-manta[Components of Manta] in the
+Operator Guide.
+
+Manta components expose metrics, but within any given Manta deployment, it's up
+to operators to set up systems for collecting, presenting, and alerting on
+metrics.  For more, see <<_deployment_specific_details>>.
+
+This section uses screenshots from existing deployments to discuss metrics
+provided by Manta and how to interpret them.  The specific metrics available and
+the appearance of graphs may vary in your deployment.
+
+// XXX add a section on Characterizing current behavior
+// XXX concurrency, latency, throughput, errors
+// XXX resource utilization, saturation, errors
+
+
+=== Predicting autovacuum activity
+
+==== Background on vacuum in Manta
+
+Autovacuum activity in PostgreSQL is a major source of degraded performance in
+large deployments, known to cause a throughput degradation as much as 70% on a
+per-shard basis.  It's helpful for operators to understand some of the basics of
+autovacuum.  A deeper understanding requires digging rather deep into
+PostgreSQL internals.  The PostgreSQL documentation describes
+https://www.postgresql.org/docs/9.6/static/routine-vacuuming.html[autovacuum,
+the reason for it, and the conditions for it] in detail.
+
+Operators should understand at least the following:
+
+- "Vacuum" is a long-running activity that runs on a per-table basis.  This is a
+  maintenance operation that generally has to be run periodically on all
+  tables in all PostgreSQL databases.
+- "Autovacuum" is the name for any vacuum that is scheduled and managed by
+  PostgreSQL itself, as opposed to one that an operator kicks off explicitly.
+- Manta has two primary tables: "manta" and "manta_directory_counts".  As
+  mentioned above, each vacuum operation runs on one table at a time (though
+  multiple vacuums can be running at the same time on different tables.)
+- There's generally a significant degradation in both average query latency and
+  tail latency while vacuum is running.  In fixed-concurrency deployments (i.e.,
+  when there are a fixed number of clients), an increase in average latency
+  corresponds directly to a decrease in throughput.
+
+We classify vacuum operations into two types:
+
+- Normal vacuums clean up tuples (rows) in the table that have been invalidated
+  since the last vacuum (usually by `UPDATE` and `DELETE` operations).
+  PostgreSQL kicks these off whenever the fraction of dead tuples exceeds a
+  configurable threshold of the table size, which is generally 20%.
+- "Anti-wraparound vacuums" (also sometimes called "wraparound vacuums", "freeze
+  vacuums", or "aggressive vacuums") are responsible for freezing old tuples.
+  PostgreSQL kicks these off whenever it's been more than a fixed number of
+  transactions since the last time this was done.
+
+Note that each type of vacuum may do the work of the other.  A normal vacuum may
+freeze some tuples, and a freeze vacuum will generally clean up dead tuples.
+This classification is about what _caused_ PostgreSQL to start the vacuum, and
+it's useful because we can monitor the underlying metrics in order to predict
+when PostgreSQL will kick off vacuum operations.
+
+Again, there's significantly more information about all of this in the
+above-linked PostgreSQL documentation.
+
+==== Using metrics to predict normal autovacuums
+
+As mentioned above, a normal vacuum is kicked off when the number of dead tuples
+has exceeded 20% of the total tuples in the table.  We can see this in Manta
+metrics.  Here's a graph of live tuples, dead tuples, and the fraction of dead
+tuples for a made-up table called "test_table" (normally in Manta this would be
+the "manta" or "manta_directory_counts" table):
+
+.A graph of dead tuples, live tuples, and autovacuum activity in a test environment.
+image::images/metrics-postgresql-tuples-autovac.png[,align="center"]
+
+In this graph:
+
+- In the upper graph, the green line shows live tuples.  This system is running
+  a heavy INSERT workload, so the count of live tuples increases relatively
+  constantly.
+- In the upper graph, the yellow line shows dead tuples.  A fraction of this
+  workload runs UPDATE queries, so there's a steady increase in dead tuples as
+  well.
+- In the upper graph, the blue line (which goes with the right-hand y-axis)
+  shows the percentage of tuples in the table that are dead.  This value also
+  climbs, though not at a linear rate.
+- In the bottom graph, the green bars represent periods where a normal vacuum
+  was running.  (You can ignore the yellow bars in this graph.)
+
+Critically **autovacuum starts running when the blue line reaches 20%, for the
+reasons described above.** Further, when vacuum finishes, the count (and
+fraction) of dead tuples decreases suddenly -- because vacuum has cleaned up
+those dead tuples.  As a result, **the blue line can be used to predict when
+normal vacuums will kick off.**
+
+==== Using metrics to predict anti-wraparound autovacuums
+
+As mentioned above, an anti-wraparound vacuum is kicked off on a table when the
+number of transactions in a database that have been executed since the last such
+vacuum exceeds some threshold.  Manta exposes this metric as well.
+
+Typically, as a workload runs, the transactions-until-wraparound-vacuum
+decreases at a rate determined by how many transactions are running in the
+database.  For a single shard, we can plot this on a line graph (one graph for
+each major table):
+
+.Graphs of the number of transactions left until the next wraparound autovacuum kicks off for the "manta" and "manta_directory_counts" tables.
+image::images/metrics-postgresql-wraparound-leadup.png[,align="center"]
+
+For a large number of shards, we can plot this as a heat map, which helps us see
+the pattern across shards:
+
+.Heat maps of the number of transactions left until the next wraparound autovacuum.  Brighter blocks indicate a larger number of data points (shards).
+image::images/metrics-postgresql-wraparound-leadup-heatmap.png[,align="center"]
+
+In the right-hand heat map, the bright line above 400M indicates that most
+shards are over 400 million transactions away from the next wraparound
+autovacuum.  The darker line around 100M shows that a smaller number are much
+closer to the threshold.  The left-hand heat map shows much greater variance for
+the "manta" table, though there's a cluster (a bright line) just under 100M
+transactions from the next wraparound autovacuum.
+
+When any of these lines reaches zero, that means we'd PostgreSQL to kick off a
+wraparound autovacuum.  The line will continue decreasing (to negative numbers)
+until the wraparound autovacuum completes, at which point it will jump back up.
+Here, we can see a whole wraparound autovacuum cycle:
+
+.Graphs of the number of transactions until the next wraparound autovacuum, plus the number of wraparound autovacuums running, for a particular shard over the course of one autovacuum operation.
+image::images/metrics-postgresql-wraparound-duration.png[,align="center"]
+
+We see here that we'd expect a wraparound autovacuum to kick off when the
+threshold reaches 0.  It keeps falling until the vacuum completes, at which
+point it jumps back up.  Another round will kick off when the line reaches zero
+again.  (Note that the lower graph here is a prediction, based directly on the
+graph above it.  It's possible (though not common in practice) that PostgreSQL
+won't actually have kicked off the wraparound autovacuum at this time.)
+
+Because of this behavior, the graph of transactions until wraparound autovacuum
+can be used to predict when wraparound autovacuums will kick off for each shard.

@@ -12,7 +12,8 @@ GUIDE_DEPS             = debugging-guide.adoc \
                          0001-incident-response.adoc \
                          0002-investigation-tasks.adoc \
                          0003-quick-reference.adoc \
-                         0004-deployment-specific.adoc
+                         0004-deployment-specific.adoc \
+			 0005-metrics.adoc
 ASCIIDOC_OPTIONS       = -b html5
 
 #

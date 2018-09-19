@@ -26,6 +26,7 @@ We recommend creating a few different dashboards:
 ** transactions-til-wraparound-autovacuum, with ability to break out by shard
    and table
 ** live and dead tuples, with ability to break out by shard and table
+** the fraction of dead tuples to total tuples
 * a CPU utilization dashboard that shows
 ** line graphs for each service showing the min and max zone-wide CPU
    utilization for that service
