@@ -473,7 +473,12 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_log_into_a_specific_zone">Log into a specific zone</a></li>
 <li><a href="#_understanding_a_muskie_log_entry">Understanding a Muskie log entry</a></li>
 <li><a href="#_understanding_latency_for_a_specific_request">Understanding latency for a specific request</a></li>
-<li><a href="#_finding_a_load_balancer_log_entry">Finding a load balancer log entry</a></li>
+<li><a href="#_finding_a_load_balancer_log_entry">Finding a load balancer log entry</a>
+<ul class="sectlevel3">
+<li><a href="#_when_to_investigate_the_load_balancer">When to investigate the load balancer</a></li>
+<li><a href="#_finding_load_balancer_log_entries">Finding load balancer log entries</a></li>
+</ul>
+</li>
 <li><a href="#_understanding_a_load_balancer_log_entry">Understanding a load balancer log entry</a></li>
 <li><a href="#_build_a_request_timeline">Build a request timeline</a></li>
 <li><a href="#_details_about_specific_error_messages">Details about specific error messages</a>
@@ -530,12 +535,6 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <div id="content">
 <div id="preamble">
 <div class="sectionbody">
-<div class="paragraph">
-<p><strong>DRAFT DRAFT DRAFT</strong></p>
-</div>
-<div class="paragraph">
-<p><strong>This is an unreviewed DRAFT document.</strong></p>
-</div>
 <div class="paragraph">
 <p>This document is intended for operators and developers of Manta seeking to better understand Manta&#8217;s runtime behavior, both under normal operation and during incident response.</p>
 </div>
@@ -1800,11 +1799,298 @@ XXX that should include 503 from <em>No storage nodes available for this request
 </div>
 <div class="sect2">
 <h3 id="_finding_a_load_balancer_log_entry">Finding a load balancer log entry</h3>
-
+<div class="sect3">
+<h4 id="_when_to_investigate_the_load_balancer">When to investigate the load balancer</h4>
+<div class="paragraph">
+<p>All HTTP requests to Manta travel through an haproxy-based load balancer (in a
+component sometimes called "muppet") before reaching the Manta API ("webapi" or
+"muskie").  This load balancer is one of the first components that processes
+these requests when they arrive at Manta.  For many problems internal to Manta,
+it&#8217;s more useful to look at <a href="#_understanding_a_muskie_log_entry">log entries at
+Muskie (webapi)</a>.  However, there are a several cases where it&#8217;s helpful to investigate the load balancer:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>when investigating a problem where the client reports <em>not</em> having received a
+normal HTTP response (e.g., a "connection refused", "connection reset", or a
+connection timeout)</p>
+</li>
+<li>
+<p>when investigating a problem where the client reports having received a
+500-level error with no "x-server-name" header.  (This generally indicates the
+response was sent by the load balancer, which happens when Muskie sends an
+invalid response or fails to send a response within a given timeout.)</p>
+</li>
+<li>
+<p>when investigating a problem where Muskie reports surprising client behavior
+(e.g., client closed its connection mid-upload, or Muskie timed out waiting
+for a client to either upload or download data)</p>
+</li>
+<li>
+<p>when investigating a failed request for which there appears to be no Muskie
+log entry at all</p>
+</li>
+<li>
+<p>to identify the source IP address of a client in a case where Muskie fails to
+report that in its own log entry</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Generally, if a client receives a well-formed response from Manta, the Muskie
+logs have more useful information than the load balancer logs.  In these other
+cases where either the client or Muskie is doing something surprising, the load
+balancer log entries can provide more information about exactly what happened.</p>
+</div>
+<div class="paragraph">
+<p>There&#8217;s a major caveat to the load balancer logs: <strong>haproxy is only able to
+interpret HTTP-level information about the first request on each TCP
+connection.</strong>  For clients using HTTP keep-alive, where multiple HTTP requests
+are sent sequentially over a TCP connection, you may not find information in the
+haproxy logs about requests after the first one.</p>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_finding_load_balancer_log_entries">Finding load balancer log entries</h4>
+<div class="paragraph">
+<p>Like most Manta logs, the haproxy logs for activity since the top of the hour
+are stored in the load balancer zone itself.  In each load balancer zone, the
+live log file is <code>/var/log/haproxy.log</code>.  This log is rotated hourly and
+uploaded into Manta under <code>/poseidon/stor/logs/haproxy/YYYY/MM/DD/HH</code>, with an
+object named for the first 8 characters of the zone.</p>
+</div>
+<div class="paragraph">
+<p>For example, consider a request at 2018-12-05T01:37Z that was handled by load
+balancer zone <code>f6817865-10fb-416c-a079-47941ac2aab4</code>.  From 01:37Z until 02:00Z,
+you&#8217;d find the log entry in <code>/var/log/haproxy.log</code> inside zone
+<code>f6817865-10fb-416c-a079-47941ac2aab4</code>.  After 0200Z, you&#8217;ll find the log entry
+in Manta inside the object
+<code>/poseidon/stor/logs/haproxy/2018/12/05/01/f6817865.log</code>.</p>
+</div>
+<div class="paragraph">
+<p>Usually when you&#8217;re looking for a load balancer log entry, you know one or more
+of the following:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>an approximate time of the request (almost always necessary)</p>
+</li>
+<li>
+<p>the URL that was requested</p>
+</li>
+<li>
+<p>the remote IP address that made the request</p>
+</li>
+<li>
+<p>the status code that was returned</p>
+</li>
+<li>
+<p>that the request experienced an unusual HTTP exchange (e.g., a malformed
+server response, a client timeout, or a server timeout)</p>
+</li>
+<li>
+<p>the particular load balancer that handled the request</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Often you don&#8217;t know which load balancer handled a particular request.  In
+that case, you need to scan all of them for a given time.  For requests in the
+last hour, you can use <code>manta-oneach</code> to do this.  (As always, care must be
+taken with <code>manta-oneach</code>.)  For historical requests, you can use a compute job
+or fetch the relevant log entries and analyze them locally.</p>
+</div>
+<div class="paragraph">
+<p>For example, to search for requests from IP address <code>10.1.2.3</code> in the top of the
+current hour:</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>manta-oneach --service=loadbalancer 'grep 10.1.2.3 /var/log/haproxy.log | tail`</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Note that we pass the result to <code>tail</code> within each zone to avoid transferring an
+enormous amount of data if there&#8217;s a large number of matching log entries.</p>
+</div>
+<div class="paragraph">
+<p>To run the same query for historical logs, you might do something like this:</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>mfind -t o /poseidon/stor/logs/haproxy/2018/12/05/01 |
+    mjob create -o -m 'grep 10.1.2.3 /var/log/haproxy.log'</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>You can adjust the <code>mfind</code> invocation as needed to scan a broader time range.</p>
+</div>
+</div>
 </div>
 <div class="sect2">
 <h3 id="_understanding_a_load_balancer_log_entry">Understanding a load balancer log entry</h3>
-
+<div class="paragraph">
+<p>The load balancer logs in a plaintext format described in the
+<a href="https://github.com/joyent/haproxy-1.5/blob/master/doc/haproxy-en.txt">haproxy
+documentation</a>.  (The haproxy documentation is also plaintext so it&#8217;s not
+possible to link directly to the right section, but look for the section called
+"Log format".)  Our load balancer logs these through syslog, which prepends a
+few fields.</p>
+</div>
+<div class="paragraph">
+<p>Here&#8217;s an example entry from our load balancer logs:</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>2018-12-05T18:32:01+00:00 42563f8d-4d61-4045-ab87-c71560388399 haproxy[65158]: ::ffff:72.2.115.97:42121 [05/Dec/2018:18:30:01.859] https secure_api/be6 2/0/0/-1/120005 502 245 - - SH-- 247/192/240/19/0 0/0 "GET /thoth/stor/thoth?limit=1024 HTTP/1.1"</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>We have a tool called <a href="https://github.com/joyent/node-haproxy-log">haplog</a> for
+converting our haproxy log entries into JSON.  Often, the easiest way to filter
+and summarize these log entries is to pass the log through <code>haplog</code>, use <code>json</code>
+to extract the relevant fields, and then use <code>grep</code> or <code>awk</code> to summarize.  We
+can use it like this:</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>$ haplog 42563f8d.log | json
+...
+{
+  "syslog_date": "2018-12-05T18:32:01.000Z",
+  "syslog_hostname": "42563f8d-4d61-4045-ab87-c71560388399",
+  "pid": 65158,
+  "client_ip": "72.2.115.97",
+  "client_port": 42121,
+  "accept_date": "05/Dec/2018:18:30:01.859",
+  "frontend_name": "https",
+  "backend_name": "secure_api",
+  "server_name": "be6",
+  "Tq": 2,
+  "Tw": 0,
+  "Tc": 0,
+  "Tr": -1,
+  "Tt": 120005,
+  "status_code": 502,
+  "bytes_read": 245,
+  "termination_state": {
+    "raw": "SH--",
+    "termination_cause": "BACKEND_ABORT",
+    "state_at_close": "WAITING_FOR_RESPONSE_HEADERS",
+    "persistence_cookie_client": "N/A",
+    "persistence_cookie_server": "N/A"
+  },
+  "actconn": 247,
+  "feconn": 192,
+  "beconn": 240,
+  "srv_conn": 19,
+  "retries": 0,
+  "srv_queue": 0,
+  "backend_queue": 0,
+  "http_request": "GET /thoth/stor/thoth?limit=1024 HTTP/1.1"
+}</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>There&#8217;s quite a lot of information here!  Among the most relevant bits:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 33.3333%;">
+<col style="width: 33.3333%;">
+<col style="width: 33.3334%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Example value</th>
+<th class="tableblock halign-left valign-top">haplog JSON field name</th>
+<th class="tableblock halign-left valign-top">Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>"2018-12-05T18:32:01.000Z"</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>syslog_date</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The timestamp when this entry was logged.  This usually corresponds to the end
+of an HTTP request or TCP connection.  This is very useful for constructing
+timelines of what happened.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>"42563f8d-4d61-4045-ab87-c71560388399"</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>syslog_hostname</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">On our systems, this is the zonename of the particular load balancer that
+handled this request.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>"72.2.115.97"</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>client_ip</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The (remote) IP address of the client that connected to Manta.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>"05/Dec/2018:18:30:01.859"</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>accept_date</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The timestamp when the TCP connection was accepted by the load balancer.  This
+is very useful for constructing timelines of what happened.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>"be6"</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>server_name</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">On our system, this is a unique identifier that indicates which Muskie zone
+handled this request.  This identifier varies between load balancer zones and
+over time.  In order to know which Muskie zone this corresponds to, you need to
+find the corresponding line in the haproxy log file (at
+<code>/opt/smartdc/muppet/etc/haproxy.cfg</code>).  This will contain the IP address of the
+Muskie zone that handled the request.  This is useful for understanding the flow
+of the request through Manta.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>"SH--"</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>termination_state</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">This is a four-digit code that describes how the TCP session finally
+terminated.  <strong>This is among the most useful fields for understanding abnormal
+behavior from the client or Muskie.</strong>  This code can be used to tell whether the
+client or server either did something unexpected (like closed the TCP
+connection) or stopped responding.  For details, on what each code means, see
+the haproxy documentation linked above.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>"GET /thoth/stor/thoth?limit=1024 HTTP/1.1"</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>http_request</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The first line of the HTTP request, which contains the HTTP method and request
+URL.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>There are a few telltale symptoms here:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>The elapsed time between <code>accept_date</code> and <code>syslog_date</code> is exactly two
+minutes.  The load balancer has a two-minute timeout for Muskie responding to
+requests.</p>
+</li>
+<li>
+<p>The termination status <code>SH--</code> is documented (in the haproxy docs) to mean:</p>
+<div class="quoteblock">
+<blockquote>
+<div class="paragraph">
+<p>SH    The server aborted before sending its full headers, or it crashed.</p>
+</div>
+</blockquote>
+</div>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>This entry appears to reflect Muskie closing its TCP connection (without sending
+an HTTP response) after exactly two minutes.  If we didn&#8217;t know what happened
+here, we at least know now that Muskie did something unexpected and not the
+client, and we also know which Muskie zone it was.</p>
+</div>
 </div>
 <div class="sect2">
 <h3 id="_build_a_request_timeline">Build a request timeline</h3>
@@ -2739,7 +3025,7 @@ can be used to predict when wraparound autovacuums will kick off for each shard.
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2018-09-19 11:50:56 PDT
+Last updated 2018-12-06 09:27:23 PST
 </div>
 </div>
 </body>
