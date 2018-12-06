@@ -246,9 +246,69 @@ identify an `x-server-name` and `x-request-id` and then see
 // metrics they should provide.
 // error rate, muskie tail latency, moray queue depth, moray tail latency
 
-=== Locate a specific zone
+=== Locating log files
 
-=== Log into a specific zone
+**Real-time logs** contain data from the current hour.  These are typically
+stored as regular files within each zone.  The specific file used varies by type
+of zone.  See the https://joyent.github.io/manta/#logs[Operator Guide] for
+details.  The `manta-oneach` command can be used as a low-level way to scan
+these real-time logs.  For example, a common way to count recent 500-level
+errors in webapi logs is:
+
+    manta-oneach --service=webapi 'grep -c "handled: 5" /var/log/muskie.log'
+
+Since the real-time logs only store the current hour's data, at 01:02Z, this
+would only scan 2 minutes worth of data.  At 01:58Z, this would scan 58 minutes
+worth of data.
+
+If we were looking for a specific request that took place at 01:37Z, then we'd
+look at the real-time log file immediately after the request happened until
+02:00Z (i.e., for 23 minutes).  After that, we'd have to look at the historical
+logs.
+
+**Historical logs** are maintained by rotating the real-time logs at the top of
+each hour and then uploading them into Manta.  Once in Manta, they're stored
+under:
+
+    /poseidon/stor/logs/COMPONENT/YYYY/MM/DD/HH/SHORTZONE.log
+
+where:
+
+* `COMPONENT` varies based on the component you're looking for
+* `YYYY`, `MM`, `DD`, and `HH` represent the year, month, day, and hour for the
+  entries in the log file
+* `SHORTZONE` is the first 8 characters of the zone's uuid.
+
+For example, to find the load balancer (haproxy) logs from zone
+f6817865-10fb-416c-a079-47941ac2aab4 from 2018-12-05T01:37Z, we would look for
+the object:
+
+    /poseidon/stor/logs/haproxy/2018/12/05/01/f6817865.log
+
+You can scan a number of these logs at once using a compute job.  For example,
+you could look for requests from IP address 10.1.2.3 in all of the load
+balancer logs from December 5, 2018 using:
+
+    mfind -t o /poseidon/stor/logs/haproxy/2018/12/05 |
+        mjob create -o -m 'grep 10.1.2.3'
+
+You can adjust the `mfind` invocation as needed to scan a broader or more narrow
+range.  You could also use the `-n` argument to `mfind` to select log files from
+a particular load balancer:
+
+    mfind -n f6817865.log -t o /poseidon/stor/logs/haproxy/2018/12/05 |
+        mjob create -o -m 'grep 10.1.2.3'
+
+Instead of using a compute job, you can also download the files individually and
+analyze them locally.
+
+**Note:** the archival process for historical logs first rotates the logs to new
+files under `/var/log/manta/upload`.  A few minutes later, these are uploaded to
+Manta and then removed from the local filesystem.  If the upload fails, the
+files are kept in `/var/log/manta/upload` for up to two days.  In extreme
+situations where Manta has been down for over an hour, you may find recent
+historical log files in `/var/log/manta/upload`, and you can scan them similar
+to the live log files using `manta-oneach`.
 
 === Understanding a Muskie log entry
 
@@ -296,21 +356,10 @@ haproxy logs about requests after the first one.
 
 ==== Finding load balancer log entries
 
-// XXX These first few paragraphs should move to a more common area, and we
-// should also discuss /var/log/manta/upload.
-
-Like most Manta logs, the haproxy logs for activity since the top of the hour
-are stored in the load balancer zone itself.  In each load balancer zone, the
-live log file is `/var/log/haproxy.log`.  This log is rotated hourly and
-uploaded into Manta under `/poseidon/stor/logs/haproxy/YYYY/MM/DD/HH`, with an
-object named for the first 8 characters of the zone.
-
-For example, consider a request at 2018-12-05T01:37Z that was handled by load
-balancer zone `f6817865-10fb-416c-a079-47941ac2aab4`.  From 01:37Z until 02:00Z,
-you'd find the log entry in `/var/log/haproxy.log` inside zone
-`f6817865-10fb-416c-a079-47941ac2aab4`.  After 0200Z, you'll find the log entry
-in Manta inside the object
-`/poseidon/stor/logs/haproxy/2018/12/05/01/f6817865.log`.
+First, see <<_locating_log_files>> for information on where to find real-time
+and historical log files.  For the load balancer, real-time log files are stored
+in `/var/log/haproxy.log`.  Historical log files are stored in Manta under
+`/poseidon/stor/logs/haproxy`.
 
 Usually when you're looking for a load balancer log entry, you know one or more
 of the following:
@@ -323,27 +372,12 @@ of the following:
   server response, a client timeout, or a server timeout)
 - the particular load balancer that handled the request
 
+Since these are plaintext logs, you can use `grep` or `awk` to filter or
+summarize them.  See <<_understanding_a_load_balancer_log_entry>> for more.
+
 Often you don't know which load balancer handled a particular request.  In
-that case, you need to scan all of them for a given time.  For requests in the
-last hour, you can use `manta-oneach` to do this.  (As always, care must be
-taken with `manta-oneach`.)  For historical requests, you can use a compute job
-or fetch the relevant log entries and analyze them locally.
-
-For example, to search for requests from IP address `10.1.2.3` in the top of the
-current hour:
-
-    manta-oneach --service=loadbalancer 'grep 10.1.2.3 /var/log/haproxy.log | tail`
-
-Note that we pass the result to `tail` within each zone to avoid transferring an
-enormous amount of data if there's a large number of matching log entries.
-
-To run the same query for historical logs, you might do something like this:
-
-    mfind -t o /poseidon/stor/logs/haproxy/2018/12/05/01 |
-        mjob create -o -m 'grep 10.1.2.3 /var/log/haproxy.log'
-
-You can adjust the `mfind` invocation as needed to scan a broader time range.
-
+that case, you need to scan all of them for a given time.  That might involve
+`manta-oneach` or a compute job.  Again, see <<_locating_log_files>>.
 
 === Understanding a load balancer log entry
 

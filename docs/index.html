@@ -469,8 +469,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_investigating_postgresql_latency">Investigating PostgreSQL latency</a></li>
 <li><a href="#_finding_or_generating_a_failed_request">Finding (or generating) a failed request</a></li>
 <li><a href="#_checking_recent_historical_metrics">Checking recent historical metrics</a></li>
-<li><a href="#_locate_a_specific_zone">Locate a specific zone</a></li>
-<li><a href="#_log_into_a_specific_zone">Log into a specific zone</a></li>
+<li><a href="#_locating_log_files">Locating log files</a></li>
 <li><a href="#_understanding_a_muskie_log_entry">Understanding a Muskie log entry</a></li>
 <li><a href="#_understanding_latency_for_a_specific_request">Understanding latency for a specific request</a></li>
 <li><a href="#_finding_a_load_balancer_log_entry">Finding a load balancer log entry</a>
@@ -1779,12 +1778,103 @@ identify an <code>x-server-name</code> and <code>x-request-id</code> and then se
 
 </div>
 <div class="sect2">
-<h3 id="_locate_a_specific_zone">Locate a specific zone</h3>
-
+<h3 id="_locating_log_files">Locating log files</h3>
+<div class="paragraph">
+<p><strong>Real-time logs</strong> contain data from the current hour.  These are typically
+stored as regular files within each zone.  The specific file used varies by type
+of zone.  See the <a href="https://joyent.github.io/manta/#logs">Operator Guide</a> for
+details.  The <code>manta-oneach</code> command can be used as a low-level way to scan
+these real-time logs.  For example, a common way to count recent 500-level
+errors in webapi logs is:</p>
 </div>
-<div class="sect2">
-<h3 id="_log_into_a_specific_zone">Log into a specific zone</h3>
-
+<div class="literalblock">
+<div class="content">
+<pre>manta-oneach --service=webapi 'grep -c "handled: 5" /var/log/muskie.log'</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Since the real-time logs only store the current hour&#8217;s data, at 01:02Z, this
+would only scan 2 minutes worth of data.  At 01:58Z, this would scan 58 minutes
+worth of data.</p>
+</div>
+<div class="paragraph">
+<p>If we were looking for a specific request that took place at 01:37Z, then we&#8217;d
+look at the real-time log file immediately after the request happened until
+02:00Z (i.e., for 23 minutes).  After that, we&#8217;d have to look at the historical
+logs.</p>
+</div>
+<div class="paragraph">
+<p><strong>Historical logs</strong> are maintained by rotating the real-time logs at the top of
+each hour and then uploading them into Manta.  Once in Manta, they&#8217;re stored
+under:</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>/poseidon/stor/logs/COMPONENT/YYYY/MM/DD/HH/SHORTZONE.log</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>where:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><code>COMPONENT</code> varies based on the component you&#8217;re looking for</p>
+</li>
+<li>
+<p><code>YYYY</code>, <code>MM</code>, <code>DD</code>, and <code>HH</code> represent the year, month, day, and hour for the
+entries in the log file</p>
+</li>
+<li>
+<p><code>SHORTZONE</code> is the first 8 characters of the zone&#8217;s uuid.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>For example, to find the load balancer (haproxy) logs from zone
+f6817865-10fb-416c-a079-47941ac2aab4 from 2018-12-05T01:37Z, we would look for
+the object:</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>/poseidon/stor/logs/haproxy/2018/12/05/01/f6817865.log</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>You can scan a number of these logs at once using a compute job.  For example,
+you could look for requests from IP address 10.1.2.3 in all of the load
+balancer logs from December 5, 2018 using:</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>mfind -t o /poseidon/stor/logs/haproxy/2018/12/05 |
+    mjob create -o -m 'grep 10.1.2.3'</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>You can adjust the <code>mfind</code> invocation as needed to scan a broader or more narrow
+range.  You could also use the <code>-n</code> argument to <code>mfind</code> to select log files from
+a particular load balancer:</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>mfind -n f6817865.log -t o /poseidon/stor/logs/haproxy/2018/12/05 |
+    mjob create -o -m 'grep 10.1.2.3'</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Instead of using a compute job, you can also download the files individually and
+analyze them locally.</p>
+</div>
+<div class="paragraph">
+<p><strong>Note:</strong> the archival process for historical logs first rotates the logs to new
+files under <code>/var/log/manta/upload</code>.  A few minutes later, these are uploaded to
+Manta and then removed from the local filesystem.  If the upload fails, the
+files are kept in <code>/var/log/manta/upload</code> for up to two days.  In extreme
+situations where Manta has been down for over an hour, you may find recent
+historical log files in <code>/var/log/manta/upload</code>, and you can scan them similar
+to the live log files using <code>manta-oneach</code>.</p>
+</div>
 </div>
 <div class="sect2">
 <h3 id="_understanding_a_muskie_log_entry">Understanding a Muskie log entry</h3>
@@ -1854,19 +1944,10 @@ haproxy logs about requests after the first one.</p>
 <div class="sect3">
 <h4 id="_finding_load_balancer_log_entries">Finding load balancer log entries</h4>
 <div class="paragraph">
-<p>Like most Manta logs, the haproxy logs for activity since the top of the hour
-are stored in the load balancer zone itself.  In each load balancer zone, the
-live log file is <code>/var/log/haproxy.log</code>.  This log is rotated hourly and
-uploaded into Manta under <code>/poseidon/stor/logs/haproxy/YYYY/MM/DD/HH</code>, with an
-object named for the first 8 characters of the zone.</p>
-</div>
-<div class="paragraph">
-<p>For example, consider a request at 2018-12-05T01:37Z that was handled by load
-balancer zone <code>f6817865-10fb-416c-a079-47941ac2aab4</code>.  From 01:37Z until 02:00Z,
-you&#8217;d find the log entry in <code>/var/log/haproxy.log</code> inside zone
-<code>f6817865-10fb-416c-a079-47941ac2aab4</code>.  After 0200Z, you&#8217;ll find the log entry
-in Manta inside the object
-<code>/poseidon/stor/logs/haproxy/2018/12/05/01/f6817865.log</code>.</p>
+<p>First, see <a href="#_locating_log_files">Locating log files</a> for information on where to find real-time
+and historical log files.  For the load balancer, real-time log files are stored
+in <code>/var/log/haproxy.log</code>.  Historical log files are stored in Manta under
+<code>/poseidon/stor/logs/haproxy</code>.</p>
 </div>
 <div class="paragraph">
 <p>Usually when you&#8217;re looking for a load balancer log entry, you know one or more
@@ -1896,36 +1977,13 @@ server response, a client timeout, or a server timeout)</p>
 </ul>
 </div>
 <div class="paragraph">
+<p>Since these are plaintext logs, you can use <code>grep</code> or <code>awk</code> to filter or
+summarize them.  See <a href="#_understanding_a_load_balancer_log_entry">Understanding a load balancer log entry</a> for more.</p>
+</div>
+<div class="paragraph">
 <p>Often you don&#8217;t know which load balancer handled a particular request.  In
-that case, you need to scan all of them for a given time.  For requests in the
-last hour, you can use <code>manta-oneach</code> to do this.  (As always, care must be
-taken with <code>manta-oneach</code>.)  For historical requests, you can use a compute job
-or fetch the relevant log entries and analyze them locally.</p>
-</div>
-<div class="paragraph">
-<p>For example, to search for requests from IP address <code>10.1.2.3</code> in the top of the
-current hour:</p>
-</div>
-<div class="literalblock">
-<div class="content">
-<pre>manta-oneach --service=loadbalancer 'grep 10.1.2.3 /var/log/haproxy.log | tail`</pre>
-</div>
-</div>
-<div class="paragraph">
-<p>Note that we pass the result to <code>tail</code> within each zone to avoid transferring an
-enormous amount of data if there&#8217;s a large number of matching log entries.</p>
-</div>
-<div class="paragraph">
-<p>To run the same query for historical logs, you might do something like this:</p>
-</div>
-<div class="literalblock">
-<div class="content">
-<pre>mfind -t o /poseidon/stor/logs/haproxy/2018/12/05/01 |
-    mjob create -o -m 'grep 10.1.2.3 /var/log/haproxy.log'</pre>
-</div>
-</div>
-<div class="paragraph">
-<p>You can adjust the <code>mfind</code> invocation as needed to scan a broader time range.</p>
+that case, you need to scan all of them for a given time.  That might involve
+<code>manta-oneach</code> or a compute job.  Again, see <a href="#_locating_log_files">Locating log files</a>.</p>
 </div>
 </div>
 </div>
