@@ -312,6 +312,28 @@ to the live log files using `manta-oneach`.
 
 === Understanding a Muskie log entry
 
+Muskie (the Manta API server) logs an _audit_ entry for every request that it
+completes.  These logs are useful for:
+
+- understanding how Manta handled a particular request (e.g., how long did it
+  take?  where was the time spent?  what metadata shards were involved?  what
+  storage nodes were involved?  what errors were encountered?)
+- understanding the workload Manta is serving (e.g., what percentage of requests
+  are GETs?  what percentage are failing?  what's the distribution of sizes for
+  uploaded objects?  which accounts are making the most requests?)
+
+Note that for real-time incident response, it's often faster to start with
+<<_checking_recent_historical_metrics>>.  These logs are most useful for digging
+deeper into a particular request or the workload overall.
+
+Muskie logs in https://github.com/trentm/node-bunyan[bunyan] format, which is a
+JSON-based format.  You typically use the `bunyan` tool to view them.  You can
+also use the `json` tool to filter and aggregate them.
+
+XXX flesh out
+
+==== Contents of a log entry
+
 XXX talk about common stack traces?
 XXX that should include 503 from 'No storage nodes available for this request'
 

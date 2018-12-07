@@ -470,7 +470,11 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_finding_or_generating_a_failed_request">Finding (or generating) a failed request</a></li>
 <li><a href="#_checking_recent_historical_metrics">Checking recent historical metrics</a></li>
 <li><a href="#_locating_log_files">Locating log files</a></li>
-<li><a href="#_understanding_a_muskie_log_entry">Understanding a Muskie log entry</a></li>
+<li><a href="#_understanding_a_muskie_log_entry">Understanding a Muskie log entry</a>
+<ul class="sectlevel3">
+<li><a href="#_contents_of_a_log_entry">Contents of a log entry</a></li>
+</ul>
+</li>
 <li><a href="#_understanding_latency_for_a_specific_request">Understanding latency for a specific request</a></li>
 <li><a href="#_finding_a_load_balancer_log_entry">Finding a load balancer log entry</a>
 <ul class="sectlevel3">
@@ -1879,8 +1883,42 @@ to the live log files using <code>manta-oneach</code>.</p>
 <div class="sect2">
 <h3 id="_understanding_a_muskie_log_entry">Understanding a Muskie log entry</h3>
 <div class="paragraph">
+<p>Muskie (the Manta API server) logs an <em>audit</em> entry for every request that it
+completes.  These logs are useful for:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>understanding how Manta handled a particular request (e.g., how long did it
+take?  where was the time spent?  what metadata shards were involved?  what
+storage nodes were involved?  what errors were encountered?)</p>
+</li>
+<li>
+<p>understanding the workload Manta is serving (e.g., what percentage of requests
+are GETs?  what percentage are failing?  what&#8217;s the distribution of sizes for
+uploaded objects?  which accounts are making the most requests?)</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Note that for real-time incident response, it&#8217;s often faster to start with
+<a href="#_checking_recent_historical_metrics">Checking recent historical metrics</a>.  These logs are most useful for digging
+deeper into a particular request or the workload overall.</p>
+</div>
+<div class="paragraph">
+<p>Muskie logs in <a href="https://github.com/trentm/node-bunyan">bunyan</a> format, which is a
+JSON-based format.  You typically use the <code>bunyan</code> tool to view them.  You can
+also use the <code>json</code> tool to filter and aggregate them.</p>
+</div>
+<div class="paragraph">
+<p>XXX flesh out</p>
+</div>
+<div class="sect3">
+<h4 id="_contents_of_a_log_entry">Contents of a log entry</h4>
+<div class="paragraph">
 <p>XXX talk about common stack traces?
 XXX that should include 503 from <em>No storage nodes available for this request</em></p>
+</div>
 </div>
 </div>
 <div class="sect2">
@@ -3083,7 +3121,7 @@ can be used to predict when wraparound autovacuums will kick off for each shard.
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2018-12-06 09:27:23 PST
+Last updated 2018-12-07 08:17:28 PST
 </div>
 </div>
 </body>
