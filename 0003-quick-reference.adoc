@@ -116,6 +116,261 @@ Importantly, because of the two modes of transfer described above (under <<_stre
 *Note:* It's been noted that MD5 checksums are deprecated for security purposes due to the risk of collisions.  While they are likely not appropriate for security, MD5 collisions remain rare enough for MD5 checksums to be used for basic integrity checks.
 
 
+=== Muskie log entry properties
+
+Below is a summary of the most relevant fields for an audit log entry.  (Note
+that Muskie sometimes writes out log entries unrelated to the completion of an
+HTTP request.  Only log entries with `"audit": true` represent completion of an
+HTTP request.  Other log entries have other fields.)
+
+==== General Muskie-provided properties
+
+[cols="3*",options="header"]
+|===
+|JSON property
+|Example value
+|Meaning
+
+|`audit`
+|`true`
+|If `true`, this entry describes completion of an HTTP request.  Otherwise, this is some other type of log entry, and many of the fields below may not apply.
+
+|`latency`
+|26
+|Time in milliseconds between when Muskie started processing this request and when the response _headers_ were sent.  This is commonly called _time to first byte_.  See also <<_build_a_request_timeline,building a request timeline>>.  This should generally match the `x-response-time` response header.
+
+|`operation`
+|`getstorage`
+|Manta-defined token that describes the type of operation.  In this case, `getstorage` refers to an HTTP `GET` from a user's `stor` directory.
+
+|`req`
+|See specific properties below.
+|Object describing the incoming request
+
+|`req.method`
+|`GET`
+|HTTP method for this request (specified by the client)
+
+|`req.url`
+|`"/poseidon/stor/manta_gc/mako/1.stor.staging.joyent.us?limit=1024"`
+|URL (path) provided for this request (specified by the client)
+
+|`req.headers`
+a|
+[source,json]
+----
+{
+    "accept": "*/*",
+    "x-request-id": "a080d88b-8e42-4a98-a6ec-12e1b0dbf612",
+    "date": "Tue, 01 Aug 2017 03:03:13 GMT",
+    "authorization": "Signature keyId=\"/poseidon/keys/ef:0e:27:45:c5:95:4e:92:ba:ab:03:17:e5:3a:60:14\",algorithm=\"rsa-sha256\",headers=\"date\",signature=\"...\"",
+    "user-agent": "restify/1.4.1 (ia32-sunos; v8/3.14.5.9; OpenSSL/1.0.1i) node/0.10.32",
+    "accept-version": "~1.0",
+    "host": "manta.staging.joyent.us",
+    "connection": "keep-alive",
+    "x-forwarded-for": "::ffff:172.27.4.22"
+}
+----
+
+|Headers provided with this request (specified by the client).  The `Date` header is particularly useful to note, as this usually reflects the timestamp (on the client) when the client generated the request.  This is useful when <<_build_a_request_timeline,constructing a request timeline>>.  In particular, problems with the network (timeouts and retransmissions) or queueing any time before Muskie starts processing the request can be identified using this header, provided that the client clock is not too far off from the server clock.
+
+|`req.caller`
+a|
+[source,json]
+----
+{
+    "login": "poseidon",
+    "uuid": "4d649f41-cf87-ca1d-c2c0-bb6a9004311d",
+    "groups": [ "operators" ],
+    "user": null
+}
+----
+
+|Object describing the account making this request.  This is not the same as the owner!  Note that this can differ from the owner of the resource (`req.owner`).  That commonly happens when the caller uses operator privileges to access objects in someone else's account or when any user makes an authenticated request to access public data in some other user's account.
+
+|`req.caller.login`
+|`"poseidon"`
+|For authenticated requests, the name of the account that made the request.
+
+|`req.caller.uuid`
+|`"4d649f41-cf87-ca1d-c2c0-bb6a9004311d"`
+|For authenticated requests, the unique identifier for the account that made the request.
+
+|`req.caller.groups`
+|`[ "operators" ]`
+|For authenticated requests, a list of groups that the caller is part of.  Generally, the only interesting group is `"operators"`, which grants the caller privileges to read from and write to any account.
+
+|`req.caller.user`
+|`null`
+|For authenticated requests _from a subuser of the account_, the name of the subuser account.
+
+|`req.owner`
+|`"4d649f41-cf87-ca1d-c2c0-bb6a9004311d"`
+|Unique identifier for the account that _owns_ the requested resource.  This is generally the uuid of the account at the start of the URL (i.e., for a request of `"/poseidon/stor"`, this would be the uuid of the account `poseidon`).
+
+|`res`
+|See specific properties below.
+|Describes the HTTP response sent by Muskie to the client.
+
+|`res.statusCode`
+|200
+|<<_http_status_codes_in_manta,HTTP-level status code>>.
+
+|`res.headers`
+a|
+[source,json]
+----
+{
+    "last-modified": "Sat, 22 Mar 2014 01:17:01 GMT",
+    "content-type": "application/x-json-stream; type=directory",
+    "result-set-size": 1,
+    "date": "Tue, 01 Aug 2017 03:03:13 GMT",
+    "server": "Manta",
+    "x-request-id": "a080d88b-8e42-4a98-a6ec-12e1b0dbf612",
+    "x-response-time": 26,
+    "x-server-name": "204ac483-7e7e-4083-9ea2-c9ea22f459fd"
+}
+----
+
+|Headers sent in the response from Muskie to the client.  Among the most useful is the `x-request-id` header, which should uniquely identify this request.  You can use this to correlate observations from the client or other parts of the system.
+
+|`route`
+|`"getstorage"`
+|Identifies the name of the restify route that handled this request.
+
+|===
+
+==== Muskie-provided properties for debugging only
+
+[cols="3*",options="header"]
+|===
+|JSON property
+|Example value
+|Meaning
+
+|`entryShard`
+|`"tcp://3.moray.staging.joyent.us:2020"`
+|When present, this indicates the shard that was queried for the metadata for `req.url`.  Unfortunately, this field is not currently present when Muskie fails to fetch metadata, either because of a Moray failure or just because the metadata is missing (i.e., the path doesn't exist).
+
+|`err`
+|`false`
+|Error associated with this request, if any.
+
+|`objectId`
+|`"bf54fb8a-6cb5-4683-8655-f9ad90b984d4"`
+|When present, this is the unique identifier for the Manta object identified by `req.url` when the request was made.  This is helpful when trying to verify that a request fetched the exact object that you expect (and not another object that had the same name at the time).
+
+|`parentShard`
+|`"tcp://2.moray.staging.joyent.us:2020"`
+|When present, this indicates the shard that was queried for the metadata for the parent directory of `req.url`.  This is only present when the parent metadata was fetched (which is common for PUT requests, but not GET or DELETE requests).  Unfortunately, this field is not currently present when Muskie fails to fetch metadata, either because of a Moray failure or just because the metadata is missing (i.e., the path doesn't exist).
+
+|`logicalRemoteAddress`
+|`"172.27.4.22"`
+|The (remote) IP address of the client connected to Manta.  Note that clients aren't connected directly to Muskie.  When using TLS ("https" URLs), clients connect to `stud` in the `loadbalancer` component.  Stud connects to `haproxy` in the same container.  `haproxy` in the load balancer container connects to another `haproxy` instance in the Muskie container.  That `haproxy` instance connects to a Muskie process.  The client's IP is passed through this chain and recorded in `logicalRemoteAddress`.
+
+|`remoteAddress`, `remotePort`
+|`"127.0.0.1"`, `64628`
+|The IP address and port of the TCP connection over which this request was received.  Generally, Muskie only connects directly to an `haproxy` inside the same zone, so the remote address will usually be `127.0.0.1`.  Neither of these fields is generally interesting except when debugging interactions with the local `haproxy`.
+
+|`req.timers`
+a|
+[source,json]
+----
+{
+    "earlySetup": 32,
+    "parseDate": 8,
+    "parseQueryString": 28,
+    "handler-3": 127,
+    "checkIfPresigned": 3,
+    "enforceSSL": 3,
+    "ensureDependencies": 5,
+    "_authSetup": 5,
+    "preSignedUrl": 3,
+    "checkAuthzScheme": 4,
+    "parseAuthTokenHandler": 36,
+    "signatureHandler": 73,
+    "parseKeyId": 59,
+    "loadCaller": 133,
+    "verifySignature": 483,
+    "parseHttpAuthToken": 5,
+    "loadOwner": 268,
+    "getActiveRoles": 43,
+    "gatherContext": 27,
+    "setup": 225,
+    "getMetadata": 5790,
+    "storageContext": 8,
+    "authorize": 157,
+    "ensureEntryExists": 3,
+    "assertMetadata": 3,
+    "getDirectoryCount": 7903,
+    "getDirectory": 10245
+}
+----
+|An object describing the time in microseconds for each phase of the request processing pipeline.  This is useful for identifying latency.  The names in this object are the names of functions inside Muskie responsible for the corresponding phase of request processing.
+
+|`sharksContacted`
+a|
+[source,json]
+----
+[ {
+  "shark": "1.stor.staging.joyent.us",
+  "result": "ok",
+  "timeToFirstByte": 2,
+  "timeTotal": 902,
+  "_startTime": 1509505866032
+}, {
+  "shark": "2.stor.staging.joyent.us",
+  "result": "ok",
+  "timeToFirstByte": 1,
+  "timeTotal": 870,
+  "_startTime": 1509505866033
+} ]
+----
+a|This field should be present for Manta requests that make requests to individual storage nodes.  The value is an array of storage nodes contacted as part of the request, including the result of this subrequest, when it started, and how long it took.
+
+For GET requests, these subrequests are GET requests from individual storage nodes hosting a copy of the object requested.  These subrequests happen serially, and we stop as soon as one completes.
+
+For PUT requests, the storage node subrequests are PUT requests to individual storage nodes on which a copy of the new object will be stored.  If all goes well, you'll see N sharks contacted (typically 2, but whatever the client's requested durability level is), all successfully, and the requests will be concurrent with each other.  If any of these fail, Manta will try another N sharks, and up to one more set of N.  For durability level 2, you may see up to 6 sharks contacted: three sets of two.  The sets would be sequential, while each pair in a set run concurrently.
+
+
+
+|===
+
+
+==== https://github.com/trentm/node-bunyan#core-fields[Bunyan]-provided properties
+
+[cols="3*",options="header"]
+|===
+|JSON property
+|Example value
+|Meaning
+
+|`time`
+|`"2017-08-01T03:03:13.985Z"`
+|ISO 8601 timestamp closest to when the log entry was generated.  
+
+|`hostname`
+|`"204ac483-7e7e-4083-9ea2-c9ea22f459fd"`
+|The hostname of the system that generated the log entry.  For us, this is generally a uuid corresponding to the zonename of the Muskie container.
+
+|`pid`
+|`79465`
+|The pid of the process that generated the log entry.
+
+|`level`
+|`30`
+|Bunyan-defined log level.  This is a numeric value corresponding to conventional values like `'debug'`, `'info'`, `'warn'`, etc.  You can filter based on level using the `bunyan` command.
+
+|`msg`
+|`"handled: 200"`
+|For Muskie audit log entries, the message is always `"handled: "` followed by the HTTP level status code.
+|===
+
+
+XXX talk about common stack traces?
+XXX that should include 503 from 'No storage nodes available for this request'
+
+
 === Glossary of Manta terms
 
 latency
