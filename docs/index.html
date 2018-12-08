@@ -472,7 +472,9 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_locating_log_files">Locating log files</a></li>
 <li><a href="#_understanding_a_muskie_log_entry">Understanding a Muskie log entry</a>
 <ul class="sectlevel3">
-<li><a href="#_contents_of_a_log_entry">Contents of a log entry</a></li>
+<li><a href="#_contents_of_a_get_log_entry">Contents of a GET log entry</a></li>
+<li><a href="#_contents_of_a_put_log_entry">Contents of a PUT log entry</a></li>
+<li><a href="#_quick_reference_for_muskie_log_entry_properties">Quick reference for Muskie log entry properties</a></li>
 </ul>
 </li>
 <li><a href="#_understanding_latency_for_a_specific_request">Understanding latency for a specific request</a></li>
@@ -1910,14 +1912,579 @@ deeper into a particular request or the workload overall.</p>
 JSON-based format.  You typically use the <code>bunyan</code> tool to view them.  You can
 also use the <code>json</code> tool to filter and aggregate them.</p>
 </div>
+<div class="sect3">
+<h4 id="_contents_of_a_get_log_entry">Contents of a GET log entry</h4>
 <div class="paragraph">
-<p>XXX flesh out</p>
+<p>Here&#8217;s an example log entry for a <strong>GET request</strong>, formatted using the <code>bunyan</code>
+command-line tool:</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>[2017-08-01T03:03:13.985Z]  INFO: muskie/HttpServer/79465 on 204ac483-7e7e-4083-9ea2-c9ea22f459fd: handled: 200 (audit=true, _audit=true, operation=getstorage, billable_operation=LIST, logicalRemoteAddress=172.27.4.22, remoteAddress=127.0.0.1, remotePort=64628, reqHeaderLength=754, resHeaderLength=269, err=false, latency=26, entryShard=tcp://3.moray.staging.joyent.us:2020, route=getstorage, req.owner=4d649f41-cf87-ca1d-c2c0-bb6a9004311d)
+    GET /poseidon/stor/manta_gc/mako/1.stor.staging.joyent.us?limit=1024 HTTP/1.1
+    accept: */*
+    x-request-id: a080d88b-8e42-4a98-a6ec-12e1b0dbf612
+    date: Tue, 01 Aug 2017 03:03:13 GMT
+    authorization: Signature keyId="/poseidon/keys/ef:0e:27:45:c5:95:4e:92:ba:ab:03:17:e5:3a:60:14",algorithm="rsa-sha256",headers="date",signature="Q74o9RHIwrDT15ogL2WeB/jankUIqJAtMM5t7+VzrHxzoB52/BoqEnq9uMY0wEvPJxv+Lf1VyLG/IBXCXeUx+fZlkhKWIWd2jkpLRdVLKwZ4nnqTfHM+YXhZ0vSN1X1W2demmnpPRTRK/RaG21pyvlbIrSTwI+N5MtKFDh9/4Ks43wSyM4MvqZZWywfs7LgKz7UtjL1Z+juhJDT8mrfQYCDpZw/NDhHmoslKsMFesMrMjPALy/CBSB23800+MhLiFB7LT0nTyCLonPBmIOjrQCZu99ICXbCxx096XCzZ2XBOK1Pe4eoDUHWx5ukTbCJV63QA+gvcvDCbS5BdDn0Xiw=="
+    user-agent: restify/1.4.1 (ia32-sunos; v8/3.14.5.9; OpenSSL/1.0.1i) node/0.10.32
+    accept-version: ~1.0
+    host: manta.staging.joyent.us
+    connection: keep-alive
+    x-forwarded-for: ::ffff:172.27.4.22
+    --
+    HTTP/1.1 200 OK
+    last-modified: Sat, 22 Mar 2014 01:17:01 GMT
+    content-type: application/x-json-stream; type=directory
+    result-set-size: 1
+    date: Tue, 01 Aug 2017 03:03:13 GMT
+    server: Manta
+    x-request-id: a080d88b-8e42-4a98-a6ec-12e1b0dbf612
+    x-response-time: 26
+    x-server-name: 204ac483-7e7e-4083-9ea2-c9ea22f459fd
+    --
+    req.caller: {
+      "login": "poseidon",
+      "uuid": "4d649f41-cf87-ca1d-c2c0-bb6a9004311d",
+      "groups": [
+        "operators"
+      ],
+      "user": null
+    }
+    --
+    req.timers: {
+      "earlySetup": 32,
+      "parseDate": 8,
+      "parseQueryString": 28,
+      "handler-3": 127,
+      "checkIfPresigned": 3,
+      "enforceSSL": 3,
+      "ensureDependencies": 5,
+      "_authSetup": 5,
+      "preSignedUrl": 3,
+      "checkAuthzScheme": 4,
+      "parseAuthTokenHandler": 36,
+      "signatureHandler": 73,
+      "parseKeyId": 59,
+      "loadCaller": 133,
+      "verifySignature": 483,
+      "parseHttpAuthToken": 5,
+      "loadOwner": 268,
+      "getActiveRoles": 43,
+      "gatherContext": 27,
+      "setup": 225,
+      "getMetadata": 5790,
+      "storageContext": 8,
+      "authorize": 157,
+      "ensureEntryExists": 3,
+      "assertMetadata": 3,
+      "getDirectoryCount": 7903,
+      "getDirectory": 10245
+    }</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The raw JSON, formatted with the <code>json</code> tool, looks like this:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-json" data-lang="json">{
+  "name": "muskie",
+  "hostname": "204ac483-7e7e-4083-9ea2-c9ea22f459fd",
+  "pid": 79465,
+  "component": "HttpServer",
+  "audit": true,
+  "level": 30,
+  "_audit": true,
+  "operation": "getstorage",
+  "billable_operation": "LIST",
+  "logicalRemoteAddress": "172.27.4.22",
+  "remoteAddress": "127.0.0.1",
+  "remotePort": 64628,
+  "reqHeaderLength": 754,
+  "req": {
+    "method": "GET",
+    "url": "/poseidon/stor/manta_gc/mako/1.stor.staging.joyent.us?limit=1024",
+    "headers": {
+      "accept": "*/*",
+      "x-request-id": "a080d88b-8e42-4a98-a6ec-12e1b0dbf612",
+      "date": "Tue, 01 Aug 2017 03:03:13 GMT",
+      "authorization": "Signature keyId=\"/poseidon/keys/ef:0e:27:45:c5:95:4e:92:ba:ab:03:17:e5:3a:60:14\",algorithm=\"rsa-sha256\",headers=\"date\",signature=\"Q74o9RHIwrDT15ogL2WeB/jankUIqJAtMM5t7+VzrHxzoB52/BoqEnq9uMY0wEvPJxv+Lf1VyLG/IBXCXeUx+fZlkhKWIWd2jkpLRdVLKwZ4nnqTfHM+YXhZ0vSN1X1W2demmnpPRTRK/RaG21pyvlbIrSTwI+N5MtKFDh9/4Ks43wSyM4MvqZZWywfs7LgKz7UtjL1Z+juhJDT8mrfQYCDpZw/NDhHmoslKsMFesMrMjPALy/CBSB23800+MhLiFB7LT0nTyCLonPBmIOjrQCZu99ICXbCxx096XCzZ2XBOK1Pe4eoDUHWx5ukTbCJV63QA+gvcvDCbS5BdDn0Xiw==\"",
+      "user-agent": "restify/1.4.1 (ia32-sunos; v8/3.14.5.9; OpenSSL/1.0.1i) node/0.10.32",
+      "accept-version": "~1.0",
+      "host": "manta.staging.joyent.us",
+      "connection": "keep-alive",
+      "x-forwarded-for": "::ffff:172.27.4.22"
+    },
+    "httpVersion": "1.1",
+    "owner": "4d649f41-cf87-ca1d-c2c0-bb6a9004311d",
+    "caller": {
+      "login": "poseidon",
+      "uuid": "4d649f41-cf87-ca1d-c2c0-bb6a9004311d",
+      "groups": [
+        "operators"
+      ],
+      "user": null
+    },
+    "timers": {
+      "earlySetup": 32,
+      "parseDate": 8,
+      "parseQueryString": 28,
+      "handler-3": 127,
+      "checkIfPresigned": 3,
+      "enforceSSL": 3,
+      "ensureDependencies": 5,
+      "_authSetup": 5,
+      "preSignedUrl": 3,
+      "checkAuthzScheme": 4,
+      "parseAuthTokenHandler": 36,
+      "signatureHandler": 73,
+      "parseKeyId": 59,
+      "loadCaller": 133,
+      "verifySignature": 483,
+      "parseHttpAuthToken": 5,
+      "loadOwner": 268,
+      "getActiveRoles": 43,
+      "gatherContext": 27,
+      "setup": 225,
+      "getMetadata": 5790,
+      "storageContext": 8,
+      "authorize": 157,
+      "ensureEntryExists": 3,
+      "assertMetadata": 3,
+      "getDirectoryCount": 7903,
+      "getDirectory": 10245
+    }
+  },
+  "resHeaderLength": 269,
+  "res": {
+    "statusCode": 200,
+    "headers": {
+      "last-modified": "Sat, 22 Mar 2014 01:17:01 GMT",
+      "content-type": "application/x-json-stream; type=directory",
+      "result-set-size": 1,
+      "date": "Tue, 01 Aug 2017 03:03:13 GMT",
+      "server": "Manta",
+      "x-request-id": "a080d88b-8e42-4a98-a6ec-12e1b0dbf612",
+      "x-response-time": 26,
+      "x-server-name": "204ac483-7e7e-4083-9ea2-c9ea22f459fd"
+    }
+  },
+  "err": false,
+  "latency": 26,
+  "entryShard": "tcp://3.moray.staging.joyent.us:2020",
+  "route": "getstorage",
+  "msg": "handled: 200",
+  "time": "2017-08-01T03:03:13.985Z",
+  "v": 0
+}</code></pre>
+</div>
+</div>
 </div>
 <div class="sect3">
-<h4 id="_contents_of_a_log_entry">Contents of a log entry</h4>
+<h4 id="_contents_of_a_put_log_entry">Contents of a PUT log entry</h4>
+<div class="paragraph">
+<p>Here&#8217;s an example log entry for a <strong>PUT request</strong>, formatted using the <code>json</code>
+tool:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-json" data-lang="json">{
+  "name": "muskie",
+  "hostname": "204ac483-7e7e-4083-9ea2-c9ea22f459fd",
+  "pid": 79465,
+  "component": "HttpServer",
+  "audit": true,
+  "level": 30,
+  "_audit": true,
+  "operation": "putdirectory",
+  "billable_operation": "PUT",
+  "logicalRemoteAddress": "172.27.3.22",
+  "reqHeaderLength": 655,
+  "req": {
+    "method": "PUT",
+    "url": "/poseidon/stor/logs/config-agent/2017/08/01/02",
+    "headers": {
+      "user-agent": "curl/7.37.0",
+      "host": "manta.staging.joyent.us",
+      "accept": "*/*",
+      "date": "Tue, 01 Aug 2017 03:01:10 GMT",
+      "authorization": "Signature keyId=\"/poseidon/keys/ef:0e:27:45:c5:95:4e:92:ba:ab:03:17:e5:3a:60:14\",algorithm=\"rsa-sha256\",signature=\"VkRkcUK7Y796whM3/IsAl+wVvsu9pKwVGNHIHxLqeBtJZqrR+cbgWZ/E9uchhsxsMezvVXVN7hMXhiSxlfnGJKjPoTKJzfJNSW8WEUhu7rMilRi9WkYGvxo/PpdplK0/Evx1dvxHSX2TiAoTgBs5s6IyP7j6LgySfDu6TzJu/9HJdLzIwAf/TTiHU15okOUoJGbcNb+OcGN/mp+EZpYbNbJ8+I585v1ZLTuta1eAPngUPWp5E7Vm5sUpJH87/8bx2H/3HaMB9YCCacorZ7NkVS5Mbiaz0ptYYEESj8DCJScKnEVrM/L97zGuTPOnQ38Il/CZfENAP7ZH2u029h3WSg==\"",
+      "connection": "close",
+      "content-type": "application/json; type=directory",
+      "x-forwarded-for": "::ffff:172.27.3.22"
+    },
+    "httpVersion": "1.1",
+    "owner": "4d649f41-cf87-ca1d-c2c0-bb6a9004311d",
+    "caller": {
+      "login": "poseidon",
+      "uuid": "4d649f41-cf87-ca1d-c2c0-bb6a9004311d",
+      "groups": [
+        "operators"
+      ],
+      "user": null
+    },
+    "timers": {
+      "earlySetup": 94,
+      "parseDate": 45,
+      "parseQueryString": 32,
+      "handler-3": 268,
+      "checkIfPresigned": 8,
+      "enforceSSL": 7,
+      "ensureDependencies": 9,
+      "_authSetup": 10,
+      "preSignedUrl": 7,
+      "checkAuthzScheme": 8,
+      "parseAuthTokenHandler": 78,
+      "signatureHandler": 155,
+      "parseKeyId": 166,
+      "loadCaller": 346,
+      "verifySignature": 1164,
+      "parseHttpAuthToken": 12,
+      "loadOwner": 234,
+      "getActiveRoles": 43,
+      "gatherContext": 28,
+      "setup": 315,
+      "getMetadata": 13345,
+      "storageContext": 14,
+      "authorize": 409,
+      "ensureParent": 222,
+      "mkdir": 841
+    }
+  },
+  "resHeaderLength": 215,
+  "res": {
+    "statusCode": 204,
+    "headers": {
+      "connection": "close",
+      "last-modified": "Tue, 01 Aug 2017 03:01:01 GMT",
+      "date": "Tue, 01 Aug 2017 03:01:11 GMT",
+      "server": "Manta",
+      "x-request-id": "ac2a5780-7665-11e7-b9e8-cf86a4bf1253",
+      "x-response-time": 18,
+      "x-server-name": "204ac483-7e7e-4083-9ea2-c9ea22f459fd"
+    }
+  },
+  "latency": 18,
+  "entryShard": "tcp://3.moray.staging.joyent.us:2020",
+  "parentShard": "tcp://2.moray.staging.joyent.us:2020",
+  "route": "putdirectory",
+  "msg": "handled: 204",
+  "time": "2017-08-01T03:01:11.048Z",
+  "v": 0
+}</code></pre>
+</div>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_quick_reference_for_muskie_log_entry_properties">Quick reference for Muskie log entry properties</h4>
+<div class="paragraph">
+<p>Below is a summary of the most relevant fields for an audit log entry.  (Note
+that Muskie sometimes writes out log entries unrelated to the completion of an
+HTTP request.  Only log entries with <code>"audit": true</code> represent completion of an
+HTTP request.  Other log entries have other fields.)</p>
+</div>
+<div class="sect4">
+<h5 id="_general_muskie_provided_properties">General Muskie-provided properties</h5>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 33.3333%;">
+<col style="width: 33.3333%;">
+<col style="width: 33.3334%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">JSON property</th>
+<th class="tableblock halign-left valign-top">Example value</th>
+<th class="tableblock halign-left valign-top">Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>audit</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>true</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">If <code>true</code>, this entry describes completion of an HTTP request.  Otherwise, this is some other type of log entry, and many of the fields below may not apply.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>latency</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">26</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Time in milliseconds between when Muskie started processing this request and when the response <em>headers</em> were sent.  This is commonly called <em>time to first byte</em>.  See also <a href="#_build_a_request_timeline">building a request timeline</a>.  This should generally match the <code>x-response-time</code> response header.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>operation</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>getstorage</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Manta-defined token that describes the type of operation.  In this case, <code>getstorage</code> refers to an HTTP <code>GET</code> from a user&#8217;s <code>stor</code> directory.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>req</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">See specific properties below.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Object describing the incoming request</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>req.method</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>GET</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">HTTP method for this request (specified by the client)</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>req.url</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>"/poseidon/stor/manta_gc/mako/1.stor.staging.joyent.us?limit=1024"</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">URL (path) provided for this request (specified by the client)</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>req.headers</code></p></td>
+<td class="tableblock halign-left valign-top"><div class="content"><div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-json" data-lang="json">{
+    "accept": "*/*",
+    "x-request-id": "a080d88b-8e42-4a98-a6ec-12e1b0dbf612",
+    "date": "Tue, 01 Aug 2017 03:03:13 GMT",
+    "authorization": "Signature keyId=\"/poseidon/keys/ef:0e:27:45:c5:95:4e:92:ba:ab:03:17:e5:3a:60:14\",algorithm=\"rsa-sha256\",headers=\"date\",signature=\"...\"",
+    "user-agent": "restify/1.4.1 (ia32-sunos; v8/3.14.5.9; OpenSSL/1.0.1i) node/0.10.32",
+    "accept-version": "~1.0",
+    "host": "manta.staging.joyent.us",
+    "connection": "keep-alive",
+    "x-forwarded-for": "::ffff:172.27.4.22"
+}</code></pre>
+</div>
+</div></div></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Headers provided with this request (specified by the client).  The <code>Date</code> header is particularly useful to note, as this usually reflects the timestamp (on the client) when the client generated the request.  This is useful when <a href="#_build_a_request_timeline">constructing a request timeline</a>.  In particular, problems with the network (timeouts and retransmissions) or queueing any time before Muskie starts processing the request can be identified using this header, provided that the client clock is not too far off from the server clock.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>req.caller</code></p></td>
+<td class="tableblock halign-left valign-top"><div class="content"><div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-json" data-lang="json">{
+    "login": "poseidon",
+    "uuid": "4d649f41-cf87-ca1d-c2c0-bb6a9004311d",
+    "groups": [ "operators" ],
+    "user": null
+}</code></pre>
+</div>
+</div></div></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Object describing the account making this request.  This is not the same as the owner!  Note that this can differ from the owner of the resource (<code>req.owner</code>).  That commonly happens when the caller uses operator privileges to access objects in someone else&#8217;s account or when any user makes an authenticated request to access public data in some other user&#8217;s account.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>req.caller.login</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>"poseidon"</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">For authenticated requests, the name of the account that made the request.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>req.caller.uuid</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>"4d649f41-cf87-ca1d-c2c0-bb6a9004311d"</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">For authenticated requests, the unique identifier for the account that made the request.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>req.caller.groups</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>[ "operators" ]</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">For authenticated requests, a list of groups that the caller is part of.  Generally, the only interesting group is <code>"operators"</code>, which grants the caller privileges to read from and write to any account.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>req.caller.user</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>null</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">For authenticated requests <em>from a subuser of the account</em>, the name of the subuser account.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>req.owner</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>"4d649f41-cf87-ca1d-c2c0-bb6a9004311d"</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Unique identifier for the account that <em>owns</em> the requested resource.  This is generally the uuid of the account at the start of the URL (i.e., for a request of <code>"/poseidon/stor"</code>, this would be the uuid of the account <code>poseidon</code>).</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>res</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">See specific properties below.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Describes the HTTP response sent by Muskie to the client.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>res.statusCode</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">200</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="#_http_status_codes_in_manta">HTTP-level status code</a>.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>res.headers</code></p></td>
+<td class="tableblock halign-left valign-top"><div class="content"><div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-json" data-lang="json">{
+    "last-modified": "Sat, 22 Mar 2014 01:17:01 GMT",
+    "content-type": "application/x-json-stream; type=directory",
+    "result-set-size": 1,
+    "date": "Tue, 01 Aug 2017 03:03:13 GMT",
+    "server": "Manta",
+    "x-request-id": "a080d88b-8e42-4a98-a6ec-12e1b0dbf612",
+    "x-response-time": 26,
+    "x-server-name": "204ac483-7e7e-4083-9ea2-c9ea22f459fd"
+}</code></pre>
+</div>
+</div></div></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Headers sent in the response from Muskie to the client.  Among the most useful is the <code>x-request-id</code> header, which should uniquely identify this request.  You can use this to correlate observations from the client or other parts of the system.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>route</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>"getstorage"</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Identifies the name of the restify route that handled this request.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sect4">
+<h5 id="_muskie_provided_properties_for_debugging_only">Muskie-provided properties for debugging only</h5>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 33.3333%;">
+<col style="width: 33.3333%;">
+<col style="width: 33.3334%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">JSON property</th>
+<th class="tableblock halign-left valign-top">Example value</th>
+<th class="tableblock halign-left valign-top">Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>entryShard</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>"tcp://3.moray.staging.joyent.us:2020"</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">When present, this indicates the shard that was queried for the metadata for <code>req.url</code>.  Unfortunately, this field is not currently present when Muskie fails to fetch metadata, either because of a Moray failure or just because the metadata is missing (i.e., the path doesn&#8217;t exist).</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>err</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>false</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Error associated with this request, if any.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>objectId</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>"bf54fb8a-6cb5-4683-8655-f9ad90b984d4"</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">When present, this is the unique identifier for the Manta object identified by <code>req.url</code> when the request was made.  This is helpful when trying to verify that a request fetched the exact object that you expect (and not another object that had the same name at the time).</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>parentShard</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>"tcp://2.moray.staging.joyent.us:2020"</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">When present, this indicates the shard that was queried for the metadata for the parent directory of <code>req.url</code>.  This is only present when the parent metadata was fetched (which is common for PUT requests, but not GET or DELETE requests).  Unfortunately, this field is not currently present when Muskie fails to fetch metadata, either because of a Moray failure or just because the metadata is missing (i.e., the path doesn&#8217;t exist).</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>logicalRemoteAddress</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>"172.27.4.22"</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The (remote) IP address of the client connected to Manta.  Note that clients aren&#8217;t connected directly to Muskie.  When using TLS ("https" URLs), clients connect to <code>stud</code> in the <code>loadbalancer</code> component.  Stud connects to <code>haproxy</code> in the same container.  <code>haproxy</code> in the load balancer container connects to another <code>haproxy</code> instance in the Muskie container.  That <code>haproxy</code> instance connects to a Muskie process.  The client&#8217;s IP is passed through this chain and recorded in <code>logicalRemoteAddress</code>.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>remoteAddress</code>, <code>remotePort</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>"127.0.0.1"</code>, <code>64628</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The IP address and port of the TCP connection over which this request was received.  Generally, Muskie only connects directly to an <code>haproxy</code> inside the same zone, so the remote address will usually be <code>127.0.0.1</code>.  Neither of these fields is generally interesting except when debugging interactions with the local <code>haproxy</code>.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>req.timers</code></p></td>
+<td class="tableblock halign-left valign-top"><div class="content"><div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-json" data-lang="json">{
+    "earlySetup": 32,
+    "parseDate": 8,
+    "parseQueryString": 28,
+    "handler-3": 127,
+    "checkIfPresigned": 3,
+    "enforceSSL": 3,
+    "ensureDependencies": 5,
+    "_authSetup": 5,
+    "preSignedUrl": 3,
+    "checkAuthzScheme": 4,
+    "parseAuthTokenHandler": 36,
+    "signatureHandler": 73,
+    "parseKeyId": 59,
+    "loadCaller": 133,
+    "verifySignature": 483,
+    "parseHttpAuthToken": 5,
+    "loadOwner": 268,
+    "getActiveRoles": 43,
+    "gatherContext": 27,
+    "setup": 225,
+    "getMetadata": 5790,
+    "storageContext": 8,
+    "authorize": 157,
+    "ensureEntryExists": 3,
+    "assertMetadata": 3,
+    "getDirectoryCount": 7903,
+    "getDirectory": 10245
+}</code></pre>
+</div>
+</div></div></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">An object describing the time in microseconds for each phase of the request processing pipeline.  This is useful for identifying latency.  The names in this object are the names of functions inside Muskie responsible for the corresponding phase of request processing.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>sharksContacted</code></p></td>
+<td class="tableblock halign-left valign-top"><div class="content"><div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-json" data-lang="json">[ {
+  "shark": "1.stor.staging.joyent.us",
+  "result": "ok",
+  "timeToFirstByte": 2,
+  "timeTotal": 902,
+  "_startTime": 1509505866032
+}, {
+  "shark": "2.stor.staging.joyent.us",
+  "result": "ok",
+  "timeToFirstByte": 1,
+  "timeTotal": 870,
+  "_startTime": 1509505866033
+} ]</code></pre>
+</div>
+</div></div></td>
+<td class="tableblock halign-left valign-top"><div class="content"><div class="paragraph">
+<p>This field should be present for Manta requests that make requests to individual storage nodes.  The value is an array of storage nodes contacted as part of the request, including the result of this subrequest, when it started, and how long it took.</p>
+</div>
+<div class="paragraph">
+<p>For GET requests, these subrequests are GET requests from individual storage nodes hosting a copy of the object requested.  These subrequests happen serially, and we stop as soon as one completes.</p>
+</div>
+<div class="paragraph">
+<p>For PUT requests, the storage node subrequests are PUT requests to individual storage nodes on which a copy of the new object will be stored.  If all goes well, you&#8217;ll see N sharks contacted (typically 2, but whatever the client&#8217;s requested durability level is), all successfully, and the requests will be concurrent with each other.  If any of these fail, Manta will try another N sharks, and up to one more set of N.  For durability level 2, you may see up to 6 sharks contacted: three sets of two.  The sets would be sequential, while each pair in a set run concurrently.</p>
+</div></div></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sect4">
+<h5 id="_bunyan_provided_properties"><a href="https://github.com/trentm/node-bunyan#core-fields">Bunyan</a>-provided properties</h5>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 33.3333%;">
+<col style="width: 33.3333%;">
+<col style="width: 33.3334%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">JSON property</th>
+<th class="tableblock halign-left valign-top">Example value</th>
+<th class="tableblock halign-left valign-top">Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>time</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>"2017-08-01T03:03:13.985Z"</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">ISO 8601 timestamp closest to when the log entry was generated.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>hostname</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>"204ac483-7e7e-4083-9ea2-c9ea22f459fd"</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The hostname of the system that generated the log entry.  For us, this is generally a uuid corresponding to the zonename of the Muskie container.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>pid</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>79465</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The pid of the process that generated the log entry.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>level</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>30</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Bunyan-defined log level.  This is a numeric value corresponding to conventional values like <code>'debug'</code>, <code>'info'</code>, <code>'warn'</code>, etc.  You can filter based on level using the <code>bunyan</code> command.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>msg</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>"handled: 200"</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">For Muskie audit log entries, the message is always <code>"handled: "</code> followed by the HTTP level status code.</p></td>
+</tr>
+</tbody>
+</table>
 <div class="paragraph">
 <p>XXX talk about common stack traces?
 XXX that should include 503 from <em>No storage nodes available for this request</em></p>
+</div>
 </div>
 </div>
 </div>
@@ -3121,7 +3688,7 @@ can be used to predict when wraparound autovacuums will kick off for each shard.
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2018-12-07 08:17:28 PST
+Last updated 2018-12-06 09:27:23 PST
 </div>
 </div>
 </body>
