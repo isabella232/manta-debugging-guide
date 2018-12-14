@@ -370,16 +370,146 @@ For PUT requests, the storage node subrequests are PUT requests to individual st
 XXX talk about common stack traces?
 XXX that should include 503 from 'No storage nodes available for this request'
 
+=== Debugging tools quick reference
 
-=== Glossary of Manta terms
+See also the https://github.com/joyent/manta-tools-deck[Manta Tools Overview].
 
-latency
-tail latency
-component names
-shards
-instances / zones
-services (SMF vs. SAPI)
-bounce (as in: a box, a service)
-box (a server)
-out of CPU
-saturated
+Many of these tools have manual pages or sections in this guide about how to use
+them.  You can generally view the manual page with `man TOOLNAME` in whatever
+context you can run the tool.
+
+[cols="4*",options="header"]
+|===
+|Tool
+|Where you run it
+|Has manual page?
+|Purpose
+
+|`manta-oneach(1)`
+|headnode GZ or "manta" zones
+|Yes
+|Run arbitrary commands in various types of Manta zones
+
+|`manta-login(1)`
+|headnode GZ or "manta" zones
+|Yes
+|Open a shell in a particular Manta zone
+
+|`mlocate`
+|"webapi" zone
+|No
+|Fetch metadata for an object (including what shard it's on)
+
+|`moray(1)` tools
+|"moray", "electric-moray" zones
+|Yes
+|Fetch rows directly from Moray
+
+|`moraystat.d`
+|"moray" zones
+|No
+|Shows running stats about Moray RPC activity
+
+|https://github.com/joyent/pgsqlstat[`pgsqlstat` tools]
+|"postgres" zones (https://jira.joyent.us/browse/MANATEE-364[need to be copied in as needed])
+|No
+|Report on PostgreSQL activity
+
+|`bunyan`
+|Anywhere
+|Yes
+|Format bunyan-format log files.  With `-p PID`, shows live verbose log entries from a process.
+
+|`curl`
+|Anywhere
+|Yes
+|`curl` is (among other things) a general-purpose HTTP client.  It can be used to make test requests to Manta itself as well as various components within Manta, including authcache and storage.
+
+|`proc(1)` tools (also called the `ptools`, which includes `pfiles`, `pstack`, and others)
+|Anywhere
+|Yes
+|Inspect various properties of a process, including its open files, thread stacks, working directory, signal mask, etc.
+
+|`netstat(1M)`
+|Anywhere
+|Yes
+|Shows information about the networking stack, including open TCP connections and various counters (including error counters).
+
+|`vfsstat(1M)`
+|Anywhere
+|Yes
+|Shows running stats related to applications' use of the filesystem (e.g., reads and writes)
+
+|`prstat(1M)`
+|Anywhere
+|Yes
+|Shows running stats related to applications' use of CPU and memory
+
+|`mpstat(1M)`
+|Anywhere
+|Yes
+|Shows running stats related to system-wide CPU usage
+
+|`zonememstat(1M)`
+|Anywhere
+|Yes
+|Shows running stats related to zone-wide memory usage
+
+|https://github.com/joyent/mdb_v8/blob/master/docs/usage.md[`mdb_v8`]
+|Anywhere
+|No
+|Inspect JavaScript-level state in core files from Node.js processes.
+
+|===
+
+=== Glossary of jargon
+
+[cols="2"]
+|===
+
+|bounce (as in: "bounce a box", "bounce a service")
+|_Bouncing_ a box or a service means restarting it.  Bouncing a box usually means rebooting a server.  Bouncing a service usually means restarting an SMF service (killing any running processes and allowing the system to restart them).
+
+|bound (as in: "CPU-bound", "disk-bound", "I/O-bound")
+|A program or a workload is said to be _"X-bound"_ for some resource X when its performance is limited by that resource.  For example, the performance of a CPU-bound process is limited by the amount of CPU available to it.  "Disk-bound" (or "I/O-bound") usually means that a process or workload is limited by the I/O performance of the storage subsystem, which may be a collection of disks organized into a ZFS pool.
+
+|box
+|A _box_ is a physical server (as opposed to a virtual machine or container).
+
+|container/zone/VM
+|A _container_ is a lightweight virtualized environment, usually having its own process namespace, networking stack, filesystems, and so on.  For most purposes, a container looks like a complete instance of the operating system, but there may be many containers running within one instance of the OS.  They generally cannot interact with each other except through narrow channels like the network.  The illumos implementation of containers are called _zones_.  SmartOS also runs hardware-based virtual machines inside zones (i.e., a heavyweight hardware-virtualized environment _within_ the lightweight OS-virtualized environment), and while those are technically running in a container, the term _container_ is usually only applied to zones not running a hardware-based virtualization environment.  For historical reasons, within Triton and SmartOS, zones are sometimes called _VMs_, though that term sometimes refers only to the hardware virtualized variety.  The three terms are often used interchangeably (and also interchangeably with _instance_, since most components are deployed within their own container).
+
+|headroom
+|Idle capacity for a resource.  For example, we say there's CPU _headroom_ on a box when some CPUs are idle some of the time.  This usually means the system is capable of doing more work (at least with respect to this resource).
+
+|instance (general, SAPI)
+|Like _service_, _instance_ can refer to a number of different things, including a member of a SAPI service or SMF service.  Most commonly, "instance" to refer to a SAPI service.
+
+|latency
+|_Latency_ refers to how much time an operation takes.  It can apply to any discrete operation: a disk I/O request, a database transaction, a remote procedure call, a system call, establishment of a TCP connection, an HTTP request, and so on.
+
+|out of (as in: "out of CPU")
+|We sometimes say a box is _out of_ a resource when that resource is fully utilized (i.e., "out of CPU" when all CPUs are busy).
+
+|pegged, slammed, swamped
+|These are all synonyms for being _out of_ some resource.  "The CPUs are pegged" means a box has very little CPU headroom (i.e., the CPUs are mostly fully utilized).  You can also say "one CPU is pegged" (i.e., that CPU is fully utilized).  You might also say "the disks are swamped" (i.e., they're nearly always busy doing I/O).  See also _saturated_.
+
+|saturated
+|A resource is _saturated_ when processes are failing to use the resource because it's already fully utilized.  For example, when CPUs are saturated, threads that are ready to run have to wait in queues.  When a network port is saturated, packets are dropped.  Similar to _pegged_, but more precise.
+
+|service (general)
+|_Service_ can refer to a SAPI service (see below), an SMF service (see below), or it may be used more generally to describe almost any useful function provided by a software component.  As a verb (e.g., "this process is servicing requests"), it usually means "to process [requests]".
+
+|service (SAPI)
+|Within https://mo.joyent.com/docs/sapi/master/#overview[SAPI (the Triton facility for managing configuration and deployment of cloud applications like Manta)], a _service_ refers to a collection of instances providing similar functionality.  It usually describes a type of component (e.g., "storage" or "webapi") that may have many instances.  These instances usually share images and configuration, and within SAPI, the _service_ is the place where such configuration is stored.
+
+|service (SMF)
+|Within the operating system, an SMF _service_ is a piece of configuration that usually describes long-running programs that should be automatically restarted under various failure conditions.  For example, we define an SMF service for "mahi-v2" (our authenticationc ache) so that the operating system automatically starts the service upon boot and restarts it if the process exits or dumps core.  (Within SMF, it's actually _instances_ of a service that get started, stopped, restarted, and so on.  For many services, there's only one "default" instance, and the terms are often used interchangeably.  Usually someone will say "I restarted the mahi-v2 service" rather than "I restarted the sole instance of the mahi-v2 service".  However, for some services (notably "muskie", "moray", "electric-moray", and "binder") we do deploy multiple instances, and it may be important to be more precise (e.g., "three of the muskie instances in this zone are in maintenance").  See `smf(5)`.
+
+|shard
+|A _shard_ generally refers to a database that makes up a fraction of a larger logical database.  For example, the Manta metadata tier is one logical data store, but it's divided into a number of equally-sized shards.  In sharded systems like this, incoming requests are directed to individual shards in a deterministic way based on some _sharding key_.  (Many systems use a customer id for this purpose.  Manta traditionally uses the name of the parent directory of the resource requested.  In Manta, each shard typically uses 2-3 databases for high availability, but these aren't separate shards because they're exact copies.  Sharding typically refers to a collection of disjoint databases that together make up a much larger dataset.
+
+|tail latency
+|When discussing a collection of operations, _tail latency_ refers to the latency of the slowest operations (i.e., the _tail_ of the distribution).  This is often quantified using a high-numbered _percentile_.  For example, if the 99th percentile of requests is 300ms, then 99% of requests have latency at most 300ms.  As compared with an average or median latency, the 99th percentile better summarizes the latency of the slowest requests.
+
+|===

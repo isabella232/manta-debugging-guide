@@ -525,7 +525,8 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_bunyan_provided_properties">Bunyan-provided properties</a></li>
 </ul>
 </li>
-<li><a href="#_glossary_of_manta_terms">Glossary of Manta terms</a></li>
+<li><a href="#_debugging_tools_quick_reference">Debugging tools quick reference</a></li>
+<li><a href="#_glossary_of_jargon">Glossary of jargon</a></li>
 </ul>
 </li>
 <li><a href="#_deployment_specific_details">Deployment-specific details</a></li>
@@ -3346,19 +3347,194 @@ XXX that should include 503 from <em>No storage nodes available for this request
 </div>
 </div>
 <div class="sect2">
-<h3 id="_glossary_of_manta_terms">Glossary of Manta terms</h3>
+<h3 id="_debugging_tools_quick_reference">Debugging tools quick reference</h3>
 <div class="paragraph">
-<p>latency
-tail latency
-component names
-shards
-instances / zones
-services (SMF vs. SAPI)
-bounce (as in: a box, a service)
-box (a server)
-out of CPU
-saturated</p>
+<p>See also the <a href="https://github.com/joyent/manta-tools-deck">Manta Tools Overview</a>.</p>
 </div>
+<div class="paragraph">
+<p>Many of these tools have manual pages or sections in this guide about how to use
+them.  You can generally view the manual page with <code>man TOOLNAME</code> in whatever
+context you can run the tool.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 25%;">
+<col style="width: 25%;">
+<col style="width: 25%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Tool</th>
+<th class="tableblock halign-left valign-top">Where you run it</th>
+<th class="tableblock halign-left valign-top">Has manual page?</th>
+<th class="tableblock halign-left valign-top">Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>manta-oneach(1)</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">headnode GZ or "manta" zones</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Yes</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Run arbitrary commands in various types of Manta zones</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>manta-login(1)</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">headnode GZ or "manta" zones</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Yes</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Open a shell in a particular Manta zone</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>mlocate</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">"webapi" zone</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">No</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Fetch metadata for an object (including what shard it&#8217;s on)</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>moray(1)</code> tools</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">"moray", "electric-moray" zones</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Yes</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Fetch rows directly from Moray</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>moraystat.d</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">"moray" zones</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">No</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Shows running stats about Moray RPC activity</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="https://github.com/joyent/pgsqlstat"><code>pgsqlstat</code> tools</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">"postgres" zones (<a href="https://jira.joyent.us/browse/MANATEE-364">need to be copied in as needed</a>)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">No</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Report on PostgreSQL activity</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>bunyan</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Anywhere</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Yes</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Format bunyan-format log files.  With <code>-p PID</code>, shows live verbose log entries from a process.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>curl</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Anywhere</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Yes</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>curl</code> is (among other things) a general-purpose HTTP client.  It can be used to make test requests to Manta itself as well as various components within Manta, including authcache and storage.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>proc(1)</code> tools (also called the <code>ptools</code>, which includes <code>pfiles</code>, <code>pstack</code>, and others)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Anywhere</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Yes</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Inspect various properties of a process, including its open files, thread stacks, working directory, signal mask, etc.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>netstat(1M)</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Anywhere</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Yes</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Shows information about the networking stack, including open TCP connections and various counters (including error counters).</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>vfsstat(1M)</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Anywhere</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Yes</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Shows running stats related to applications' use of the filesystem (e.g., reads and writes)</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>prstat(1M)</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Anywhere</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Yes</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Shows running stats related to applications' use of CPU and memory</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>mpstat(1M)</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Anywhere</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Yes</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Shows running stats related to system-wide CPU usage</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>zonememstat(1M)</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Anywhere</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Yes</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Shows running stats related to zone-wide memory usage</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="https://github.com/joyent/mdb_v8/blob/master/docs/usage.md"><code>mdb_v8</code></a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Anywhere</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">No</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Inspect JavaScript-level state in core files from Node.js processes.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sect2">
+<h3 id="_glossary_of_jargon">Glossary of jargon</h3>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 50%;">
+<col style="width: 50%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">bounce (as in: "bounce a box", "bounce a service")</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><em>Bouncing</em> a box or a service means restarting it.  Bouncing a box usually means rebooting a server.  Bouncing a service usually means restarting an SMF service (killing any running processes and allowing the system to restart them).</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">bound (as in: "CPU-bound", "disk-bound", "I/O-bound")</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A program or a workload is said to be <em>"X-bound"</em> for some resource X when its performance is limited by that resource.  For example, the performance of a CPU-bound process is limited by the amount of CPU available to it.  "Disk-bound" (or "I/O-bound") usually means that a process or workload is limited by the I/O performance of the storage subsystem, which may be a collection of disks organized into a ZFS pool.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">box</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A <em>box</em> is a physical server (as opposed to a virtual machine or container).</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">container/zone/VM</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A <em>container</em> is a lightweight virtualized environment, usually having its own process namespace, networking stack, filesystems, and so on.  For most purposes, a container looks like a complete instance of the operating system, but there may be many containers running within one instance of the OS.  They generally cannot interact with each other except through narrow channels like the network.  The illumos implementation of containers are called <em>zones</em>.  SmartOS also runs hardware-based virtual machines inside zones (i.e., a heavyweight hardware-virtualized environment <em>within</em> the lightweight OS-virtualized environment), and while those are technically running in a container, the term <em>container</em> is usually only applied to zones not running a hardware-based virtualization environment.  For historical reasons, within Triton and SmartOS, zones are sometimes called <em>VMs</em>, though that term sometimes refers only to the hardware virtualized variety.  The three terms are often used interchangeably (and also interchangeably with <em>instance</em>, since most components are deployed within their own container).</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">headroom</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Idle capacity for a resource.  For example, we say there&#8217;s CPU <em>headroom</em> on a box when some CPUs are idle some of the time.  This usually means the system is capable of doing more work (at least with respect to this resource).</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">instance (general, SAPI)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Like <em>service</em>, <em>instance</em> can refer to a number of different things, including a member of a SAPI service or SMF service.  Most commonly, "instance" to refer to a SAPI service.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">latency</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><em>Latency</em> refers to how much time an operation takes.  It can apply to any discrete operation: a disk I/O request, a database transaction, a remote procedure call, a system call, establishment of a TCP connection, an HTTP request, and so on.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">out of (as in: "out of CPU")</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">We sometimes say a box is <em>out of</em> a resource when that resource is fully utilized (i.e., "out of CPU" when all CPUs are busy).</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">pegged, slammed, swamped</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">These are all synonyms for being <em>out of</em> some resource.  "The CPUs are pegged" means a box has very little CPU headroom (i.e., the CPUs are mostly fully utilized).  You can also say "one CPU is pegged" (i.e., that CPU is fully utilized).  You might also say "the disks are swamped" (i.e., they&#8217;re nearly always busy doing I/O).  See also <em>saturated</em>.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">saturated</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A resource is <em>saturated</em> when processes are failing to use the resource because it&#8217;s already fully utilized.  For example, when CPUs are saturated, threads that are ready to run have to wait in queues.  When a network port is saturated, packets are dropped.  Similar to <em>pegged</em>, but more precise.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">service (general)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><em>Service</em> can refer to a SAPI service (see below), an SMF service (see below), or it may be used more generally to describe almost any useful function provided by a software component.  As a verb (e.g., "this process is servicing requests"), it usually means "to process [requests]".</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">service (SAPI)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Within <a href="https://mo.joyent.com/docs/sapi/master/#overview">SAPI (the Triton facility for managing configuration and deployment of cloud applications like Manta)</a>, a <em>service</em> refers to a collection of instances providing similar functionality.  It usually describes a type of component (e.g., "storage" or "webapi") that may have many instances.  These instances usually share images and configuration, and within SAPI, the <em>service</em> is the place where such configuration is stored.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">service (SMF)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Within the operating system, an SMF <em>service</em> is a piece of configuration that usually describes long-running programs that should be automatically restarted under various failure conditions.  For example, we define an SMF service for "mahi-v2" (our authenticationc ache) so that the operating system automatically starts the service upon boot and restarts it if the process exits or dumps core.  (Within SMF, it&#8217;s actually <em>instances</em> of a service that get started, stopped, restarted, and so on.  For many services, there&#8217;s only one "default" instance, and the terms are often used interchangeably.  Usually someone will say "I restarted the mahi-v2 service" rather than "I restarted the sole instance of the mahi-v2 service".  However, for some services (notably "muskie", "moray", "electric-moray", and "binder") we do deploy multiple instances, and it may be important to be more precise (e.g., "three of the muskie instances in this zone are in maintenance").  See <code>smf(5)</code>.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">shard</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A <em>shard</em> generally refers to a database that makes up a fraction of a larger logical database.  For example, the Manta metadata tier is one logical data store, but it&#8217;s divided into a number of equally-sized shards.  In sharded systems like this, incoming requests are directed to individual shards in a deterministic way based on some <em>sharding key</em>.  (Many systems use a customer id for this purpose.  Manta traditionally uses the name of the parent directory of the resource requested.  In Manta, each shard typically uses 2-3 databases for high availability, but these aren&#8217;t separate shards because they&#8217;re exact copies.  Sharding typically refers to a collection of disjoint databases that together make up a much larger dataset.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">tail latency</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">When discussing a collection of operations, <em>tail latency</em> refers to the latency of the slowest operations (i.e., the <em>tail</em> of the distribution).  This is often quantified using a high-numbered <em>percentile</em>.  For example, if the 99th percentile of requests is 300ms, then 99% of requests have latency at most 300ms.  As compared with an average or median latency, the 99th percentile better summarizes the latency of the slowest requests.</p></td>
+</tr>
+</tbody>
+</table>
 </div>
 </div>
 </div>
