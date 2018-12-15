@@ -42,8 +42,7 @@ Generally:
 - Generally, **400-level codes (i.e., codes from 400 to 499)** indicate that the request failed due to something within the client's control.
 - Generally, **500-level codes (i.e., codes from 500 to 599)** indicate a server-side failure.
 
-// TODO Make this a link.
-See also: Debugging Request Failures.
+See also: <<_investigating_an_increase_in_error_rate>>.
 
 ==== HTTP Headers in Manta
 
@@ -463,6 +462,9 @@ context you can run the tool.
 |===
 
 === Glossary of jargon
+
+See also: https://eng.joyent.com/ras/#_glossary[Glossary of hardware terms from
+Joyent's RAS specifications].
 
 [cols="2"]
 |===
