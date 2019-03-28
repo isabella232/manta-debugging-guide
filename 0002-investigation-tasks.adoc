@@ -299,8 +299,22 @@ a particular load balancer:
     mfind -n f6817865.log -t o /poseidon/stor/logs/haproxy/2018/12/05 |
         mjob create -o -m 'grep 10.1.2.3'
 
-Instead of using a compute job, you can also download the files individually and
-analyze them locally.
+When working with a Manta deployment where jobs aren't functional, you can
+instead `mget` log files and do your filtering locally, like so:
+
+    mfind -t o /poseidon/stor/logs/haproxy/2018/12/05 |
+        while read f; do mget $f | grep 10.1.2.3; done
+
+Note that the above sequence of commands will download the entirety of every log
+file found by `mfind`, which may occupy an inconvenient amount of time and disk
+space. To mitigate this, you can use `head` to fetch a smaller number of log
+entries, like so:
+
+    mfind -t o /poseidon/stor/logs/haproxy/2018/12/05 |
+        while read f; do mget $f | head -n 1000 | grep 10.1.2.3; done
+
+When the above command sequence is run, each invocation of `mget` will terminate
+once `head` has read 1000 lines.
 
 **Note:** the archival process for historical logs first rotates the logs to new
 files under `/var/log/manta/upload`.  A few minutes later, these are uploaded to
