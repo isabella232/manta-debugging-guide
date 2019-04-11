@@ -257,7 +257,6 @@ There are a couple of major kinds of error.
 
 See <<_not_enough_free_space_for_mb>>.
 
-// TODO cover 504?
 
 ==== Response code 503
 
@@ -343,14 +342,17 @@ processed by Muskie.
   This appears to be a client issue.
 
 
+==== Response code 413
+
+See <<_request_has_exceeded_bytes>>.
+
 ==== Other 400-level response codes
 
 These are usually client issues, though it's always possible there are
-server-side bugs that cause erroneous 400-level responses.  The only way to be
-sure is to examine the request and response to see if the response appears
+server-side bugs that cause erroneous 400-level responses.  (For an obscure
+example, see https://smartos.org/bugview/MANTA-2319[MANTA-2319].)  The only way
+to be sure is to examine the request and response to see if the response appears
 correct.
-
-// TODO find bug where too many ssh keys resulted in 401/403?
 
 
 === Investigating a specific request that has failed

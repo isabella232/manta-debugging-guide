@@ -26,13 +26,13 @@ Here we cover only status codes with particular meanings within Manta or that ar
 | 408          | `Request Timeout` | The server did not receive a complete request from the client within a reasonable timeout.
 | 409          | `Conflict`        | The client sent an invalid combination of parameters for an API request.
 | 412          | `Precondition Failed` | The client issued a conditional request and the conditions were not true.  (For example, this could have been a PUT-if-the-object-does-not-already-exist, and the object already existed.)
+| 413          | `Request Entity Too Large` | The client attempted a streaming upload and sent more bytes than were allowed based on the `max-content-length` header.  See <<_request_has_exceeded_bytes>> for details.
 | 429          | `Too Many Requests`     | The client is being rate-limited by the server because it issued too many requests in too short a period.
 | 499          | (not in HTTP)   | The 499 status is used to indicate that the client appeared to abandon the request.  (In this case, it's not possible to send a response.  The 499 code is used for internal logging and statistics.)  This was originally used in nginx.
 | 500          | `Internal Server Error` | Catch-all code for a failure to process this request.
 | 502          | `Bad Gateway`           | Historically, this code was emitted by Manta when requests took more than two minutes to complete.  This was an artifact of the load balancer.  Modern versions of Manta report this as a 503.
 | 503          | `Service Unavailable`   | This code generally indicates that the system is overloaded and cannot process more work.  In practice, this currently means that a particular metadata shard's queue is full, that Muskie took too long to respond to the request, or that there aren't enough working storage nodes with enough disk space to satisfy this upload.
-| 504          | `Gateway Timeout`       | Similar to 502.
-| 507          | `Not Enough Space`      | The Manta deployment is out of physical disk space for new objects.
+| 507          | `Not Enough Space`      | The Manta deployment is out of physical disk space for new objects.  See <<_not_enough_free_space_for_mb>> for details.
 |================================================
 
 Generally:

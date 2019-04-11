@@ -804,15 +804,53 @@ client, and we also know which Muskie zone it was.
 
 === Details about specific error messages
 
-==== `No storage nodes available for this request`
+==== "Request has exceeded ... bytes"
 
-==== `Not enough free space for ... MB`
+You may observe any of the following symptoms:
 
-This code (associated with 507 errors) indicates that Manta does not have enough
-space available on any storage nodes for the write _that was requested_.  This
-would be surprising in production environments, although it's easy to induce
-even in production by requesting an absurd size.  For example, you'll see this
-if you attempt to upload an enormous object:
+- a 413 ("Request Entity Too Large") response code
+- an error with name `MaxContentLengthExceededError`
+- an error with a message like `request has exceeded 11 bytes` (the actual
+  number of bytes varies)
+- a Muskie log entry showing `MaxSizeExceededError`
+
+All of these indicate that the client attempted a streaming upload but attempted
+to upload more bytes than Manta expected.  If the `max-content-length` header
+was provided, its value was too small for the content that was uploaded.  If the
+header was not provided, then the default value picked for the maximum streaming
+upload size was not sufficient.  In both cases, the issue can be resolved by
+having the client provide a `max-content-length` that's at least as large as the
+object that it's attempting to upload.
+
+Here's an example that demonstrates the case:
+
+[source,text]
+----
+$ echo 1234567890 | mput -q -H 'max-content-length: 7' /dap/public/foo
+mput: MaxContentLengthExceededError: request has exceeded 11 bytes
+$
+----
+
+See the section on <<_not_enough_free_space_for_mb>> for more details on
+streaming uploads and the `max-content-length` header.  **Note that the error
+message incorrectly implies that 11 bytes was the limit.**  This is a
+http://smartos.org/bugview/MANTA-4214[bug].  The actual limit was whatever was
+specified by the `max-content-length` header or else a default value described
+in that linked section.
+
+Note that for non-streaming uploads, the failure mode for attempting to upload
+too many bytes is less well-defined, as this is likely to break the framing of
+HTTP requests on the TCP connection.
+
+==== "No storage nodes available for this request"
+
+==== "Not enough free space for ... MB"
+
+This message (associated with 507 errors) indicates that Manta does not have
+enough space available on enough storage nodes _for the write that was
+requested_.  This would be surprising in production environments, although it's
+easy to induce even in production by requesting an absurd size.  For example,
+you'll see this if you attempt to upload an enormous object:
 
 [source,text]
 ----
@@ -820,18 +858,111 @@ $ mput -H 'max-content-length: 1125899906842624' /dap/stor/waytoobig
 mput: NotEnoughSpaceError: not enough free space for 1073741824 MB
 ----
 
-https://apidocs.joyent.com/manta/api.html#PutObject[Recall that Manta supports
-two kinds of uploads]: streaming and fixed-length.
+Manta determines a maximum object size for each upload request and validates
+that enough storage is available to satisfy the request.  When there aren't
+enough storage nodes that have the required amount of space, the request fails
+with this message.  (A request will also fail if the client attempts to upload
+more than the maximum expected size, but that produces
+<<_request_has_exceeded_bytes,a different error>>.)
 
-Streaming uploads are specified using the `transfer-encoding: chunked` header.
-In this case, the space allocated up front (and validated) is specified by the
-`max-content-length` header.  If that header is missing, a default value is used
-_that is sometimes too large in some development environments_, which can cause
-streaming uploads to fail in development environments.
+In determining the maximum object size for an upload request,
+https://apidocs.joyent.com/manta/api.html#PutObject[Manta supports two kinds of
+uploads]: fixed-size and streaming.  A **fixed-size** upload is one that
+specifies the size of the object using the `content-length` request header.
+Manta uses this value directly as the maximum object size.  A **streaming**
+upload is specified using the `transfer-encoding: chunked` header.  In this
+case, the space that Manta allocates up front (and validates) is given by the
+`max-content-length` header, if provided, or else a server-side, configurable
+default value.  The `storage.defaultMaxStreamingSizeMB` property in Muskie's
+configuration file determines this value.  This is typically populated from the
+`MUSKIE_DEFAULT_MAX_STREAMING_SIZE_MB` SAPI property.  The typical value is 5120
+MB.  **This is documented in the Manta API, so changing it may break working
+clients.**  Note that this default is sometimes too large in some development
+environments, which can cause streaming uploads to fail with this message.  An
+object PUT must specify either `transfer-encoding: chunked` or `content-length`.
 
-If an object PUT does not specify `transfer-encoding: chunked`, then it must
-specify `content-length`, in which case that value is used for allocation (and
-validation).
+To understand a specific instance of this error, ask:
+
+* **Does the size in the error message match what you (and the end user)
+  expected would be required for this request?** The process by which Manta
+  determines this size is described above.  If this does not match what you
+  and the end user expect, that may reflect a bug.  (More commonly, end users
+  may not understand the semantics of `content-length` and `max-content-length`
+  or operators don't understand the `defaultMaxStreamingSizeMB` default value.
+  Again, see above and the linked API documentation for an explanation of
+  those.)
+* If the value matches what you expect, **does Manta actually have that much
+  space?**  This question is more complex than it sounds.  Keep in mind that:
+** Manta will only consider storage zones currently using less than a
+   configurable maximum amount of space.  This is determined by the
+   `storage.maxUtilizationPct` property of Muskie configuration files, which
+   comes from the `MUSKIE_MAX_UTILIZATION_PCT` SAPI property.  For requests from
+   operator accounts, the `storage.maxOperatorUtilizationPct` property is used
+   instead, which comes from the `MUSKIE_MAX_OPERATOR_UTILIZATION_PCT` SAPI
+   property.
+** Multiple copies are written for each new object.  The number of copies is
+   determined by the `durability-level` header that is specified by the client.
+   All copies of the object must be assigned to separate storage zones.  The
+   requested amount of space must be present on as many storage zones are there
+   are supposed to be copies created.
+** If this is a multi-datacenter deployment (i.e., if the `storage.multiDC`
+   Muskie configuration property (which comes from the `MUSKIE_MULTI_DC` SAPI
+   property) is set to a true value), then copies must be spread across
+   datacenters as well.  If the number of copies is less than the number of
+   datacenters (e.g., 2 copies in a 3-datacenter deployment), then all copies
+   must be placed into separate datacenters (so there must be a storage zone in
+   each datacenter with enough capacity).  If the number of copies is at least
+   the number of datacenters, at least one copy must be placed in each
+   datacenter.
+
+Example: in the common case of `durability-level: 2` (the default) in a multi-DC
+deployment with `content-length` of 10 GB, there must be 10 GB of space
+available on at least one storage zone _in each of two datacenters_.  The
+request could fail with this error even if there are two storage zones with
+enough space if those storage zones are all in the same datacenter.
+
+The `mpicker` tool can be used to determine how much space is available on each
+storage zone.  The `mpicker poll` command summarizes available space on each
+storage zone that's under the configured utilization percentage.  For example:
+
+[source,text]
+----
+[root@380920d9 (webapi) ~]$ /opt/smartdc/muskie/bin/mpicker poll
+polling options:
+ max percentage utilization: 92
+
+DATACENTER MANTA_STORAGE_ID          %USED         AVAIL_MB      TIMESTAMP
+staging-3  3.stor.staging.joyent.us  91            197218        2019-04-10T21:15:35.726Z
+staging-2  2.stor.staging.joyent.us  87            306039        2019-04-10T21:15:35.221Z
+staging-1  1.stor.staging.joyent.us  81            456521        2019-04-10T21:15:37.506Z
+[root@380920d9 (webapi) ~]$
+----
+
+The `mpicker choose` command can be used to simulate Manta's storage allocation
+behavior for a request of a given size.  Here's an example request for a size
+that would fail, given the above output:
+
+[source,text]
+----
+[root@380920d9 (webapi) ~]$ /opt/smartdc/muskie/bin/mpicker poll -j | /opt/smartdc/muskie/bin/mpicker choose -s 310000
+replicas requested: 2
+size requested: 310000 MB
+storage server count by datacenter:
+        staging-3: 1 (0 available)
+        staging-2: 1 (0 available)
+        staging-1: 1 (1 available)
+total storage server count: 3 (1 available)
+
+could not choose storage node set: 2 copies requested, but only 1 DC(s) have sufficient space
+----
+
+If you run `mpicker choose` in this way using the same size as you see in the
+"No space available for ... " message, you'd typically expected to see the same
+error.
+
+The `mpicker` command has a number of options to control the output and simulate
+different conditions.  See the help output for details.
+
 
 === Locating metadata for an object
 
