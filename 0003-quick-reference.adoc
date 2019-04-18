@@ -253,7 +253,7 @@ a|
 
 |`err`
 |`false`
-|Error associated with this request, if any.
+|Error associated with this request, if any.  See <<_details_about_specific_error_messages>>.
 
 |`objectId`
 |`"bf54fb8a-6cb5-4683-8655-f9ad90b984d4"`

@@ -346,6 +346,10 @@ also use the `json` tool to filter and aggregate them.
 
 **For more information, see <<_muskie_log_entry_properties>>.**
 
+**If you have a particular Muskie log entry with an error message in it and you
+want to know more about the error, see
+<<_details_about_specific_error_messages>>.**
+
 ==== Contents of a GET log entry
 
 Below is an example log entry for a **GET request**, formatted using the `bunyan`
@@ -843,6 +847,103 @@ too many bytes is less well-defined, as this is likely to break the framing of
 HTTP requests on the TCP connection.
 
 ==== "No storage nodes available for this request"
+
+Certain underlying conditions (described below) result in the following
+symptoms:
+
+- an error (reported either from the client or server) with message "No storage
+  nodes available for this request"
+- a 503 response code (reported either from the client or server), likely having
+  a "Retry-After" header
+- a client-reported error called "InternalError"
+- a server-reported error called "SharksExhaustedError"
+
+If you see these symptoms, read on for more information.
+
+NOTE: This section does not apply to all 503 response codes nor all instances of
+InternalError.  However, the condition described here always produces a 503
+response code, an InternalError reported to the client, and a
+SharksExhaustedError reported internally, and both the client and the server
+errors always include this message.
+
+These symptoms occur when Manta gave up on an object upload request (i.e., a PUT
+request) while trying to connect to storage nodes to store copies of the
+requested object.  In many cases, retrying the request is likely to succeed
+because different storage nodes will be selected that are likely to be
+available.  For that reason, the response generally includes a `Retry-After`
+HTTP header.  If the problem is persistent, there may be an unusual problem
+affecting a lot of storage nodes (e.g., a whole datacenter partition).
+
+More specifically: for each upload request, Manta selects up to three _sets_ of
+storage nodes that will be used to store copies of the object.  Each set
+contains as many storage nodes as there will be copies of the object (two by
+default, but this can be overridden by the client).  Manta first attempts to
+initiate an object upload to all the storage nodes in the first set.  If any of
+those fails, it moves on to the second set, and so on until all sets are
+exhausted, at which point the request fails.
+
+Based on the way this works, it's possible for Manta to report this failure even
+when most of the system is functioning normally -- it only takes three storage
+node failures.  Keep in mind, though, that when Manta selects storage nodes for
+these sets (before even attempting to connect to them), it only selects storage
+nodes that have reported their own capacity relatively recently (typically
+within the last minute or so), so it's expected that most of them should be
+online and functioning.  That's why retries are likely to succeed and why
+persistent occurrence of this problem may indicate a more unusual network issue.
+
+**To understand the problem in more detail:**
+
+- First, follow the steps to
+  <<_investigating_a_specific_request_that_has_failed,find the Muskie log entry
+  for the failed request>>.
+- The log entry for object uploads includes a property called `sharksContacted`,
+  which describes each of the sharks (storage nodes) that Muskie attempted to
+  reach.  Each entry indicates the time Manta started trying to reach it, how
+  long it took (if successful), and what the result was (e.g., `ok`).  See the
+  entry for `sharksContacted` under
+  <<_muskie_provided_properties_for_debugging_only>> for an example.  Also see
+  <<_understanding_a_muskie_log_entry>>.
+
+Using the `sharksContacted` property, you can <<_build_a_request_timeline>>.
+You should be able to tell from this property which storage nodes were part of
+which set (e.g., the first set of two, the second set of two, and so on).  This
+will allow you to confirm that Manta failed to reach at least one of the storage
+nodes in each set, and it will indicate which storage nodes it failed to
+contact.
+
+**What if there are fewer than three sets of storage nodes?**  This can happen
+when there aren't enough storage nodes meeting the desired storage requirements
+(e.g., that copies are in different datacenters).  In small deployments, this
+can lead to https://smartos.org/bugview/MANTA-3454[higher error rates than
+expected].
+
+Once you've determined which storage nodes Manta failed to reach, you can dig
+further into why Manta failed to reach them.  This is largely beyond the
+scope of this guide, but below are some questions you might start with:
+
+- **Was the storage node actually online at this time?**  You may be able to use
+  logs in the zone (e.g., `/var/log/mako-access.log`) or the output of commands
+  like `last reboot` or `uptime` to demonstrate that the zone was online (or
+  not).  Similarly, you could look for evidence that the server itself was
+  online using logs or these same commands from the global zone.  You could look
+  for crash dumps (indicating an operating system panic) in
+  `/var/crash/volatile` in the global zone or looking at logs in `/var/log` in
+  the global zone.
+- **Was the storage node reachable at this time?**  This can be difficult to
+  debug after the fact, but you can look for evidence in some of these same logs
+  (e.g., `/var/log/mako-access.log`).  Evidence of serving requests indicates at
+  least _some_ remote systems were able to reach it.  A sudden drop in request
+  activity is consistent with network problems.  However, many of the symptoms
+  of network issues (including disconnects, timeouts, and reset connections) are
+  also consistent with systemic problems that caused important programs to stop
+  running for an extended period (e.g., major I/O problems or problems with the
+  operating system).
+
+If you're debugging the problem right after it happened or if it's currently
+reproducible, these questions are easier to answer.  For example, if you can log
+into a zone, then it's not offline.  You can check for network connectivity with
+tools like `ping(1)`.
+
 
 ==== "Not enough free space for ... MB"
 
