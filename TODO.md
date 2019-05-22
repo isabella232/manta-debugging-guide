@@ -15,6 +15,8 @@ path through the decision tree goes where it should.
 - load balancer problems
 - muskie slowness
 
+- overview of object metadata, using mlocate
+
 - message:
 {"phase":"0","what":"phase 0: input \"/khangngu/stor/books/treasure_island.txt\"","code":"InvalidArgumentError","message":"failed to dispatch task: requested image is not available","input":"/khangngu/stor/books/treasure_island.txt","p0input":"/khangngu/stor/books/treasure_island.txt"}
 from: https://chatlogs.joyent.us/logs/manta/2018/07/26#00:11:10.748Z
