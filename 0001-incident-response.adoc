@@ -252,6 +252,20 @@ There are a couple of major kinds of error.
 - If there's a networking issue that causes the client or server to abandon the
   connection, both sides will generally report an explicit socket error.
 
+Errors that manifest as explicit HTTP responses (i.e., 400-level and 500-level
+responses) are visible to operators via logs and metrics provided by Manta.
+
+There are less common failures as well:
+
+- A client may find no servers in DNS.  This may or may not be visible to
+  operators.
+- A client may time out attempting to resolve DNS.  This is unlikely to be
+  visible to Manta operators.
+- A client may time out attempting to establish a TCP connection to Manta.  This
+  is not likely to be visible to Manta operators.
+
+The rest of this section discusses specific response codes for errors and what
+they mean.
 
 ==== Response code 507
 
