@@ -405,7 +405,7 @@ processed this request.
 +
 [source,text]
 ----
-manta-oneach -z WEBAPI_ZONE_UUID 'grep REQUEST_ID /var/log/muskie.log' | bunyan
+manta-oneach -z WEBAPI_ZONE_UUID 'svcs -L muskie | xargs cat | grep REQUEST_ID' | bunyan
 ----
 +
 filling in `WEBAPI_ZONE_UUID` from the `x-server-name` header and `REQUEST_ID`
@@ -453,7 +453,7 @@ log entry.
 +
 [source,text]
 ----
-manta-oneach -s webapi 'grep REQUEST_ID /var/log/muskie.log' | bunyan
+manta-oneach -s webapi 'svcs -L muskie | xargs cat | grep REQUEST_ID' | bunyan
 ----
 +
 ** **No, the request was handled earlier than that.**  Use a job to search

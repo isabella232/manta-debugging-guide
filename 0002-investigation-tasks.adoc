@@ -255,7 +255,7 @@ details.  The `manta-oneach` command can be used as a low-level way to scan
 these real-time logs.  For example, a common way to count recent 500-level
 errors in webapi logs is:
 
-    manta-oneach --service=webapi 'grep -c "handled: 5" /var/log/muskie.log'
+    manta-oneach --service=webapi 'svcs -L muskie | xargs cat | grep -c "handled: 5"'
 
 Since the real-time logs only store the current hour's data, at 01:02Z, this
 would only scan 2 minutes worth of data.  At 01:58Z, this would scan 58 minutes
